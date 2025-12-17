@@ -1,0 +1,528 @@
+rules:
+  # ==========================================
+  # GENERIC CODING RULES (LANGUAGE INDEPENDENT)
+  # ==========================================
+  # These rules apply to all programming languages and promote
+  # clean, maintainable, and professional code.
+  
+  # Rule 1: Code Must Have Author Information
+  # Why: So others know who wrote the code
+  # Note: This is enforced by the header-validator.py script
+  # which checks for Purpose, Author, Date, and Modified By fields
+  
+  # Rule 2: Use Meaningful Variable Names
+  # Why: Code should explain itself
+  - id: generic-single-letter-variable
+    pattern-either:
+      - pattern: let $X = ...
+      - pattern: var $X = ...
+      - pattern: const $X = ...
+    message: "Rule 2: Use meaningful variable names. Avoid single-letter names except for loop counters"
+    languages: [javascript, typescript, python, java, go]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Generic Rule 2"
+  
+  # Rule 3: Follow Proper Indentation
+  # Why: Makes code easy to read
+  # Note: This is typically enforced by linters and formatters (ESLint, Prettier, Black, gofmt, etc.)
+  
+  # Rule 4: One Function Should Do One Job
+  # Why: Easy to test and fix (Single Responsibility Principle)
+  - id: generic-function-too-long
+    pattern: |
+      function $FUNC(...) {
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+      }
+    message: "Rule 4: One function should do one job. This function appears too long - consider breaking it into smaller functions"
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: code-quality
+      rule: "Generic Rule 4"
+  
+  # Rule 5: Always Handle Errors
+  # Why: Programs should not crash
+  - id: generic-empty-catch
+    pattern-either:
+      - pattern: |
+          try {
+            ...
+          } catch ($E) {
+          }
+      - pattern: |
+          try:
+            ...
+          except:
+            pass
+    message: "Rule 5: Always handle errors. Never ignore exceptions - programs should not crash"
+    languages: [javascript, typescript, python, java]
+    severity: ERROR
+    metadata:
+      category: error-handling
+      rule: "Generic Rule 5"
+  
+  # Rule 6: Avoid Duplicate Code
+  # Why: Repetition causes bugs (DRY - Don't Repeat Yourself)
+  - id: generic-duplicate-code
+    pattern: |
+      if ($COND) {
+        $BODY
+      }
+      ...
+      if ($COND) {
+        $BODY
+      }
+    message: "Rule 6: Avoid duplicate code. Repetition causes bugs - follow the DRY principle"
+    languages: [javascript, typescript, java, go]
+    severity: WARNING
+    metadata:
+      category: code-quality
+      rule: "Generic Rule 6"
+  
+  # Rule 7: Add Comments Only When Needed
+  # Why: Code should be self-explanatory
+  # Note: Excessive commenting is hard to detect automatically
+  # Focus on writing clear, self-documenting code with meaningful names
+  
+  # Rule 8: Remove Unused Code
+  # Why: Clean code is safe code
+  - id: generic-unused-variable
+    pattern: |
+      let $VAR = $VALUE;
+      ...
+    message: "Rule 8: Remove unused code. Clean code is safe code - remove unused variables"
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: code-quality
+      rule: "Generic Rule 8"
+  
+  # Rule 9: Use Version Control Properly
+  # Why: Track changes safely
+  # Note: Version control usage is enforced through Git workflows and commit practices
+  # Ensure meaningful commit messages and proper branching strategies
+  
+  # ==========================================
+  # JAVASCRIPT CODING STANDARDS
+  # ==========================================
+  
+  # 2.1 Strict Equality
+  - id: strict-equality
+    pattern: $X == $Y
+    message: Use === instead of == for strict equality comparison
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      category: best-practice
+      references:
+        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Equality_comparisons_and_sameness
+
+  - id: strict-inequality
+    pattern: $X != $Y
+    message: Use !== instead of != for strict inequality comparison
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      category: best-practice
+
+  # 2.2 No Console in Production
+  - id: no-console-log
+    pattern: console.log(...)
+    message: Avoid console.log in production code. Use proper logging library
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: best-practice
+
+  - id: no-console-debug
+    pattern: console.debug(...)
+    message: Avoid console.debug in production code
+    languages: [javascript, typescript]
+    severity: INFO
+
+  # 2.3 Use const instead of let
+  - id: prefer-const
+    pattern: let $X = $Y
+    message: Use const instead of let if value is not reassigned
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: best-practice
+
+  # 2.4 Meaningful Variable Names
+  - id: single-letter-var
+    pattern: |
+      let $X = $Y;
+    message: Avoid single-letter variable names. Use meaningful names
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: naming-convention
+
+  # 2.5 Empty Catch Blocks
+  - id: empty-catch-block
+    pattern: |
+      try {
+        ...
+      } catch ($E) {
+      }
+    message: Never ignore errors. Handle exceptions properly with logging or re-throwing
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: error-handling
+
+  # 2.6 Hard-coded Credentials
+  - id: hardcoded-password
+    pattern-either:
+      - pattern: var $PASSWORD = "..."
+      - pattern: let $PASSWORD = "..."
+      - pattern: const $PASSWORD = "..."
+    message: Never hard-code passwords. Use environment variables
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-798
+
+  - id: hardcoded-api-key
+    pattern-either:
+      - pattern: var $API_KEY = "..."
+      - pattern: let $API_KEY = "..."
+      - pattern: const $API_KEY = "..."
+    message: Never hard-code API keys. Use environment variables
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+
+  # 2.7 Magic Numbers
+  - id: magic-numbers
+    pattern: if ($X > $NUM)
+    message: Avoid magic numbers. Use named constants
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: best-practice
+
+  # ==========================================
+  # JAVA CODING STANDARDS
+  # ==========================================
+
+  # 4.1 Empty Catch Blocks (Java)
+  - id: java-empty-catch
+    pattern: |
+      try {
+        ...
+      } catch (Exception $E) {
+      }
+    message: Never ignore exceptions. Handle them properly with logging
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: error-handling
+
+  # 4.2 System.out.println in Production
+  - id: java-system-out
+    pattern: System.out.println(...)
+    message: Avoid System.out.println. Use proper logging framework (log4j, slf4j)
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: best-practice
+
+  # 4.3 Hard-coded Credentials (Java)
+  - id: java-hardcoded-password
+    pattern: String $PASSWORD = "...";
+    message: Never hard-code passwords. Use environment variables or configuration
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-798
+
+  # 4.4 Use Interface Instead of Implementation
+  - id: java-use-interface
+    pattern: ArrayList $VAR = new ArrayList(...);
+    message: Use List interface instead of ArrayList implementation
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: best-practice
+    fix: List $VAR = new ArrayList(...);
+
+  - id: java-use-map-interface
+    pattern: HashMap $VAR = new HashMap(...);
+    message: Use Map interface instead of HashMap implementation
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: best-practice
+    fix: Map $VAR = new HashMap(...);
+
+  # 4.5 Magic Numbers (Java)
+  # Note: This rule is commented out due to parsing limitations
+  # Manually review code for magic numbers in Java files
+
+  # 4.6 Public Fields
+  - id: java-public-fields
+    pattern: public $TYPE $FIELD;
+    message: Fields should be private. Use getters/setters for access
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: encapsulation
+
+  # 4.7 Proper Exception Handling
+  - id: java-catch-exception
+    pattern: |
+      catch (Exception $E) {
+        System.out.println($E);
+      }
+    message: Avoid generic exception handling. Use specific exceptions and proper logging
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: error-handling
+
+  # ==========================================
+  # GO (GOLANG) CODING STANDARDS
+  # ==========================================
+
+  # 3.1 Error Handling in Go
+  - id: go-unhandled-error
+    pattern: |
+      $X, err := $FUNC(...)
+      $Y
+    message: Handle errors immediately. Check if err != nil
+    languages: [go]
+    severity: ERROR
+    metadata:
+      category: error-handling
+
+  # 3.2 Avoid Panic
+  - id: go-avoid-panic
+    pattern: panic($X)
+    message: Avoid using panic. Return errors instead
+    languages: [go]
+    severity: WARNING
+    metadata:
+      category: error-handling
+
+  # 3.3 Global Variables
+  - id: go-global-var
+    pattern: var $GLOBAL $TYPE
+    message: Avoid global variables. Use local scope when possible
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: best-practice
+
+  # 3.4 Magic Numbers (Go)
+  # Note: This rule is commented out due to parsing limitations
+  # Manually review code for magic numbers in Go files
+
+  # 3.5 Unclosed Channels
+  - id: go-unclosed-channel
+    pattern: |
+      $CH := make(chan $TYPE)
+      ...
+    message: Ensure channels are properly closed to avoid goroutine leaks
+    languages: [go]
+    severity: WARNING
+    metadata:
+      category: concurrency
+
+  # ==========================================
+  # PYTHON CODING STANDARDS
+  # ==========================================
+
+  # Python: Empty Except Blocks
+  - id: python-empty-except
+    pattern: |
+      try:
+        ...
+      except:
+        pass
+    message: Never ignore exceptions. Handle them properly
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: error-handling
+
+  # Python: Bare Except
+  - id: python-bare-except
+    pattern: |
+      try:
+        ...
+      except:
+        ...
+    message: Avoid bare except. Catch specific exceptions
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: error-handling
+
+  # Python: Print Statements
+  - id: python-print-statement
+    pattern: print(...)
+    message: Avoid print statements in production. Use logging module
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: best-practice
+
+  # ==========================================
+  # SECURITY RULES (ALL LANGUAGES)
+  # ==========================================
+
+  # SQL Injection
+  - id: sql-injection-risk
+    pattern-either:
+      - pattern: $DB.execute("... " + $VAR + " ...")
+      - pattern: $DB.query("... " + $VAR + " ...")
+    message: Potential SQL injection vulnerability. Use parameterized queries
+    languages: [javascript, typescript, python, java]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-89
+
+  # Eval Usage
+  - id: dangerous-eval
+    pattern: eval($X)
+    message: Avoid using eval(). It can execute arbitrary code and is a security risk
+    languages: [javascript, typescript, python]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-95
+
+  # ==========================================
+  # CODE QUALITY RULES
+  # ==========================================
+
+  # Duplicate Code
+  - id: duplicate-if-conditions
+    pattern: |
+      if ($COND) {
+        $BODY
+      }
+      ...
+      if ($COND) {
+        $BODY
+      }
+    message: Duplicate code detected. Follow DRY principle
+    languages: [javascript, typescript, java, go]
+    severity: INFO
+    metadata:
+      category: code-quality
+
+  # Long Functions (Heuristic)
+  - id: function-too-long
+    pattern: |
+      function $FUNC(...) {
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+      }
+    message: Function is too long. Consider breaking it into smaller functions (Single Responsibility Principle)
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: code-quality
+
+  # ==========================================
+  # INPUT VALIDATION
+  # ==========================================
+
+  # Missing Input Validation
+  - id: missing-input-validation
+    pattern: |
+      function $FUNC($PARAM) {
+        $DB.save($PARAM);
+      }
+    message: Missing input validation. Validate parameters before using them
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      category: security
+
+  # ==========================================
+  # PERFORMANCE RULES
+  # ==========================================
+
+  # Inefficient Loop
+  - id: inefficient-array-push-in-loop
+    pattern: |
+      for (...) {
+        $ARR.push($ITEM);
+      }
+    message: Consider using array methods like map() or filter() for better performance
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: performance
+
+  # ==========================================
+  # DOCUMENTATION RULES
+  # ==========================================
+
+  # ==========================================
+  # FILE HEADER DOCUMENTATION (MANDATORY)
+  # Note: These rules check for required header comments
+  # For comprehensive validation, use the header-validator.py script
+  # ==========================================
+
+  # Missing Function Documentation
+  - id: missing-function-doc
+    pattern: |
+      function $FUNC($PARAMS) {
+        ...
+      }
+    message: Add documentation comments to explain the purpose of this function
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: documentation
+
+  # ==========================================
+  # NAMING CONVENTION RULES
+  # ==========================================
+
+  # Class Naming (Java)
+  - id: java-class-naming
+    pattern: class $CLASS { ... }
+    message: Class names should use PascalCase
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: naming-convention
+
+  # Constant Naming (Java)
+  - id: java-constant-naming
+    pattern: |
+      public static final $TYPE $NAME = ...;
+    message: Constants should use UPPER_CASE naming convention
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: naming-convention

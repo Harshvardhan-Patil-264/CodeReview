@@ -121,6 +121,89 @@ rules:
   # Ensure meaningful commit messages and proper branching strategies
   
   # ==========================================
+  # JAVASCRIPT CODING STANDARDS
+  # ==========================================
+  
+  - id: no-console-log
+    pattern: console.log(...)
+    message: Avoid console.log in production code. Use proper logging library
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: best-practice
+
+  - id: no-console-debug
+    pattern: console.debug(...)
+    message: Avoid console.debug in production code
+    languages: [javascript, typescript]
+    severity: INFO
+
+  # 2.3 Use const instead of let
+  - id: prefer-const
+    pattern: let $X = $Y
+    message: Use const instead of let if value is not reassigned
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: best-practice
+
+  # 2.4 Meaningful Variable Names
+  - id: single-letter-var
+    pattern: |
+      let $X = $Y;
+    message: Avoid single-letter variable names. Use meaningful names
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: naming-convention
+
+  # 2.5 Empty Catch Blocks
+  - id: empty-catch-block
+    pattern: |
+      try {
+        ...
+      } catch ($E) {
+      }
+    message: Never ignore errors. Handle exceptions properly with logging or re-throwing
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: error-handling
+
+  # 2.6 Hard-coded Credentials
+  - id: hardcoded-password
+    pattern-either:
+      - pattern: var $PASSWORD = "..."
+      - pattern: let $PASSWORD = "..."
+      - pattern: const $PASSWORD = "..."
+    message: Never hard-code passwords. Use environment variables
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-798
+
+  - id: hardcoded-api-key
+    pattern-either:
+      - pattern: var $API_KEY = "..."
+      - pattern: let $API_KEY = "..."
+      - pattern: const $API_KEY = "..."
+    message: Never hard-code API keys. Use environment variables
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+
+  # 2.7 Magic Numbers
+  - id: magic-numbers
+    pattern: if ($X > $NUM)
+    message: Avoid magic numbers. Use named constants
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: best-practice
+
+  # ==========================================
   # 20 ESSENTIAL JAVASCRIPT CODING RULES
   # ==========================================
   # These rules enforce best practices, security, and maintainability

@@ -10,6 +10,10 @@ semgrep --config semgrep-task/rules/coding-rules.yml semgrep-task/code/ --json -
 
 semgrep --config semgrep-task/rules/coding-rules.yml semgrep-task/code/test.js --severity ERROR --severity WARNING
 
+python header-validator.py code/
+.
+$ semgrep --config=rules/coding-rules.yml code/test.js --severity=ERROR --severity=WARNING
+
 ## 📁 Project Structure
 
 ```

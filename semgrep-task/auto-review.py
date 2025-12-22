@@ -1,105 +1,103 @@
-#!/usr/bin/env python3
 import os
-import sys
+import json
 import subprocess
-import argparse
+import pandas as pd
 from pathlib import Path
-from typing import List
-
-# Color codes for terminal status messages
-class Colors:
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    GREEN = '\033[92m'
-    BOLD = '\033[1m'
-    END = '\033[0m'
-
-# Map extensions to internal language keys
-LANGUAGE_MAP = {
-    '.js': 'javascript',
-    '.jsx': 'javascript',
-    '.ts': 'typescript',
-    '.tsx': 'typescript',
-    '.py': 'python',
-    '.java': 'java',
-    '.go': 'go',
-}
-
-# Map language keys to your SPECIFIC filenames in the rules/ folder
-# Based on your folder structure: common-rules.yml, go-rules.yml, etc.
-RULE_FILES = {
-    'javascript': ['javascript-rules.yml', 'common-rules.yml'],
-    'typescript': ['javascript-rules.yml', 'common-rules.yml'],
-    'python': ['python-rules.yml', 'common-rules.yml'],
-    'java': ['java-rules.yml', 'common-rules.yml'],
-    'go': ['go-rules.yml', 'common-rules.yml'],
-}
 
 class CodeReviewer:
-    def __init__(self, target_path: str, severity: str = None):
-        self.target_path = Path(target_path)
-        self.severity = severity
-        # Points to the 'rules' folder in your project
-        self.rules_dir = Path(__file__).parent / "rules"
-
-    def detect_language(self, file_path: Path) -> str:
-        return LANGUAGE_MAP.get(file_path.suffix.lower())
-
-    def get_rule_files(self, language: str) -> List[Path]:
-        """Fetches only the rules specific to the detected language"""
-        rule_names = RULE_FILES.get(language, [])
-        paths = []
-        for name in rule_names:
-            rule_path = self.rules_dir / name
-            if rule_path.exists():
-                paths.append(rule_path)
-        return paths
-
-    def run_semgrep(self, file_path: Path, rule_files: List[Path]):
-        """Runs Semgrep with selected rules and displays native output"""
-        cmd = ['semgrep']
+    def __init__(self, target_path):
+        self.script_dir = Path(__file__).parent.resolve()
+        self.rules_dir = self.script_dir / "rules"
+        self.common_rules = self.rules_dir / "common-rules.yml"
+        self.header_script = self.script_dir / "header-validator.py"
+        self.target_path = Path(target_path).resolve()
         
-        for rule_file in rule_files:
-            cmd.extend(['--config', str(rule_file)])
-        
-        if self.severity:
-            severities = self.severity.upper().split(',')
-            for sev in severities:
-                cmd.extend(['--severity', sev.strip()])
-        
-        cmd.append(str(file_path))
-
-        # Printing a status line before Semgrep takes over the terminal
-        print(f"{Colors.BLUE}{Colors.BOLD}🔍 Reviewing {file_path.name} using {len(rule_files)} rule sets...{Colors.END}")
-        
-        try:
-            # Native output is achieved by NOT capturing stdout
-            subprocess.run(cmd)
-        except Exception as e:
-            print(f"{Colors.RED}Error: {e}{Colors.END}")
-
-    def review_file(self, file_path: Path):
-        language = self.detect_language(file_path)
-        if not language:
-            return
-        
-        rules = self.get_rule_files(language)
-        if rules:
-            self.run_semgrep(file_path, rules)
+        self.results = []
+        self.rule_map = {
+            '.js': self.rules_dir / 'javascript-rules.yml',
+            '.py': self.rules_dir / 'python-rules.yml',
+            '.go': self.rules_dir / 'go-rules.yml',
+            '.java': self.rules_dir / 'java-rules.yml'
+        }
 
     def run(self):
-        if self.target_path.is_file():
+        if not self.target_path.exists():
+            print(f"Error: Path {self.target_path} not found.")
+            return
+
+        if self.target_path.is_dir():
+            for root, _, files in os.walk(self.target_path):
+                for file in files:
+                    file_path = Path(root) / file
+                    if file_path.suffix in self.rule_map:
+                        self.results = [] 
+                        self.check_header(file_path)
+                        self.review_file(file_path)
+                        self.export_file_report(file_path)
+        else:
+            self.results = []
+            self.check_header(self.target_path)
             self.review_file(self.target_path)
-        elif self.target_path.is_dir():
-            for ext in LANGUAGE_MAP.keys():
-                for file_path in self.target_path.rglob(f"*{ext}"):
-                    self.review_file(file_path)
+            self.export_file_report(self.target_path)
+
+    def check_header(self, file_path):
+        print(f"Validating Header: {file_path.name}")
+        cmd = ["python", str(self.header_script), str(file_path)]
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
+        if result.stdout and "FAILED" in result.stdout:
+            self.results.append({
+                "Timestamp": pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "File": file_path.name,
+                "Line": 1,
+                "Rule ID": "HEADER-CHECK",
+                "Severity": "ERROR",
+                "Message": result.stdout.strip()
+            })
+
+    def review_file(self, file_path):
+        specific_rule = self.rule_map.get(file_path.suffix)
+        active_rules = [r for r in [specific_rule, self.common_rules] if r and r.exists()]
+
+        for rule_file in active_rules:
+            print(f"Scanning: {file_path.name} with {rule_file.name}")
+            cmd = ["semgrep", "--config", str(rule_file), "--json", str(file_path)]
+            res = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
+            if res.stdout:
+                try:
+                    data = json.loads(res.stdout)
+                    for finding in data.get('results', []):
+                        self.results.append({
+                            "Timestamp": pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            "File": file_path.name,
+                            "Line": finding['start']['line'],
+                            "Rule ID": finding['check_id'],
+                            "Severity": finding['extra']['severity'],
+                            "Message": finding['extra']['message']
+                        })
+                except: continue
+
+    def export_file_report(self, file_path):
+        if not self.results:
+            return
+        
+        report_name = f"{file_path.stem}.xlsx"
+        new_df = pd.DataFrame(self.results)
+
+        # Check if the file already exists
+        if os.path.exists(report_name):
+            # Load the existing data
+            existing_df = pd.read_excel(report_name)
+            # Combine old data with new data
+            final_df = pd.concat([existing_df, new_df], ignore_index=True)
+            print(f"🔄 Updated existing report: {report_name}")
+        else:
+            final_df = new_df
+            print(f"✨ Created new report: {report_name}")
+        
+        final_df.to_excel(report_name, index=False)
 
 if __name__ == "__main__":
+    import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('path', help='File or directory to review')
-    parser.add_argument('--severity', help='e.g. ERROR,WARNING')
-    args = parser.parse_args()
-    
-    CodeReviewer(args.path, args.severity).run()
+    parser.add_argument("path")
+    CodeReviewer(parser.parse_args().path).run()

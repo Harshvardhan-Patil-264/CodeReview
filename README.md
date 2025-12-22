@@ -25,6 +25,14 @@ To check header-validation.py file
 
 python semgrep-task/header-validator.py semgrep-task/code/
 
+
+To check code review from another folder and generate a excel file of the errors 
+
+$ python CodeReview/semgrep-task/auto-review.py "D:\ReviewCode\code"
+
+above "folder path"
+
+
 ## 📁 Project Structure old
 
 ```

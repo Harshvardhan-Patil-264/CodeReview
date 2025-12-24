@@ -27,7 +27,7 @@ python semgrep-task/header-validator.py semgrep-task/code/
 
 To check code review from another folder and generate a excel file of the errors 
 
-$ python CodeReview/semgrep-task/auto-review.py "D:\ReviewCode\code"
+$ python CodeReview/semgrep-task/auto-review.py "D:\ReviewCode"
 
 above "folder path"
 

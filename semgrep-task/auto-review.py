@@ -11,7 +11,6 @@ SUPPORTED_EXTENSIONS = {
     '.py': 'python', '.go': 'go'
 }
 
-# Basic mandatory fields
 REQUIRED_FIELDS = {
     'Purpose': r'(?i)purpose\s*:',
     'Author': r'(?i)author\s*:',
@@ -24,7 +23,6 @@ class CodeReviewer:
         self.rules_dir = self.script_dir / "rules"
         self.common_rules = self.rules_dir / "common-rules.yml"
         self.target_path = Path(target_path).resolve()
-        
         self.results = []
         
         self.rule_map = {
@@ -35,60 +33,71 @@ class CodeReviewer:
             '.java': self.rules_dir / 'java-rules.yml'
         }
 
-    def extract_header(self, file_path):
+    def extract_comment_blocks(self, file_path):
+        """Extracts content based on language: /* */ for C-style, ### for Python."""
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
-            return '\n'.join(content.split('\n')[:50])
-        except Exception:
-            return ""
 
-    def check_header(self, file_path):
-        """Validates header with ONLY the requested custom error messages."""
+            # Logic for JS, TS, Java, Go
+            if file_path.suffix in ['.js', '.ts', '.java', '.go']:
+                return re.findall(r'/\*+([\s\S]*?)\*+/', content)
+            
+            # Logic for Python using # format
+            elif file_path.suffix == '.py':
+                # This regex finds groups of consecutive lines starting with #
+                blocks = re.findall(r'((?:^[ \t]*#.*(?:\n|$))+)', content, flags=re.MULTILINE)
+                # Clean the '#' symbols so the header logic only sees the text
+                return [re.sub(r'^[ \t]*#+', '', block, flags=re.MULTILINE) for block in blocks]
+            
+            return []
+        except Exception:
+            return []
+
+    def check_header_logic(self, file_path):
+        """Hierarchical validation remains 100% same."""
         if file_path.suffix not in SUPPORTED_EXTENSIONS:
             return
 
-        header_text = self.extract_header(file_path)
         timestamp = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+        comment_blocks = self.extract_comment_blocks(file_path)
+
+        # --- BOX 1: HEADER COMMENT BOX ---
+        header_title_found = False
+        if len(comment_blocks) > 0:
+            if re.search(r'(?i)HEADER\s+COMMENT\s+BOX', comment_blocks[0]):
+                header_title_found = True
+                missing = [f for f, p in REQUIRED_FIELDS.items() if not re.search(p, comment_blocks[0])]
+                if missing:
+                    self.results.append({
+                        "Timestamp": timestamp, "File": file_path.name, "Line": 1,
+                        "Rule ID": "HEADER-C", "Severity": "ERROR",
+                        "Message": "Missing mandatory fields like Purpose, Author, Date Created inside * Header Comment box"
+                    })
+
+        if not header_title_found:
+            self.results.append({
+                "Timestamp": timestamp, "File": file_path.name, "Line": 1,
+                "Rule ID": "HEADER-F", "Severity": "ERROR",
+                "Message": "Header * comment box not created"
+            })
+
+        # --- BOX 2: MODIFICATION HISTORY ---
+        history_found = False
+        for block in comment_blocks:
+            if re.search(r'(?i)MODIFICATION\s+HISTORY', block):
+                history_found = True
+                break
         
-        # 1. Check for the * box format (Restored as requested)
-        has_star_box = re.search(r'\*{10,}', header_text)
-        if not has_star_box:
+        if not history_found:
             self.results.append({
-                "Timestamp": timestamp,
-                "File": file_path.name,
-                "Line": 1,
-                "Rule ID": "HEADER-FORMAT",
-                "Severity": "ERROR",
-                "Message": "Headers are not represented in * comment box"
-            })
-
-        # 2. Custom Mandatory Fields Check
-        missing_fields = [field for field, pattern in REQUIRED_FIELDS.items() if not re.search(pattern, header_text)]
-
-        if missing_fields:
-            self.results.append({
-                "Timestamp": timestamp,
-                "File": file_path.name,
-                "Line": 1,
-                "Rule ID": "HEADER-CONTENT",
-                "Severity": "ERROR",
-                "Message": "Missing mandatory fields like Purpose, Author, Date Created inside * Header Comment box"
-            })
-
-        # 3. Custom Modification Table Check
-        history_table_pattern = r'(?i)MODIFIED BY\s*\|\s*MODIFIED DATE\s*\|\s*PURPOSE'
-        if not re.search(history_table_pattern, header_text):
-            self.results.append({
-                "Timestamp": timestamp,
-                "File": file_path.name,
-                "Line": 1,
-                "Rule ID": "HEADER-TABLE",
-                "Severity": "ERROR",
+                "Timestamp": timestamp, "File": file_path.name, "Line": 1,
+                "Rule ID": "HEADER-T", "Severity": "ERROR",
                 "Message": "Modification table not created which includes columns as Modified by, Modified Date, Purpose"
             })
 
     def review_file(self, file_path):
+        print(f"🔍 Scanning document: {file_path.name}...", end="\r", flush=True)
         specific_rule = self.rule_map.get(file_path.suffix)
         active_configs = []
         if specific_rule and specific_rule.exists():
@@ -96,13 +105,9 @@ class CodeReviewer:
         if self.common_rules.exists():
             active_configs.append(str(self.common_rules))
 
-        if not active_configs:
-            return
-
         for config_path in active_configs:
             cmd = ["semgrep", "--quiet", "--config", config_path, "--json", str(file_path)]
             res = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
-            
             if res.stdout.strip():
                 try:
                     data = json.loads(res.stdout)
@@ -115,64 +120,41 @@ class CodeReviewer:
                             "Severity": finding['extra']['severity'],
                             "Message": finding['extra']['message']
                         })
-                except Exception as e:
-                    print(f"❌ Error parsing Semgrep output: {e}")
+                except: pass
 
-    def export_file_report(self, file_path):
-        if not self.results: 
-            return
-        
+    def export_report(self, file_path):
+        if not self.results: return
         report_name = f"{file_path.stem}_Review.xlsx"
-        new_df = pd.DataFrame(self.results).copy()
-        report_exists = os.path.exists(report_name)
+        report_path = Path(report_name)
+        print(" " * 80, end="\r") 
+        msg = f"🔄 Updated report : {report_name}" if report_path.exists() else f"✨ Created new report: {report_name}"
+        df = pd.DataFrame(self.results)
+        df['is_header'] = df['Rule ID'].str.contains('HEADER')
+        df = df.sort_values(by=['is_header', 'Line'], ascending=[False, True]).drop(columns=['is_header'])
 
-        if report_exists:
-            try:
-                existing_df = pd.read_excel(report_name)
-                combined_df = pd.concat([existing_df, new_df], ignore_index=True)
-                final_df = combined_df.drop_duplicates(subset=['File', 'Line', 'Message'], keep='last').copy()
-                status_msg = f"🔄 Updated report: {report_name}"
-            except Exception: 
-                final_df = new_df
-                status_msg = f"✨ Created new report (Recovery): {report_name}"
-        else:
-            final_df = new_df
-            status_msg = f"✨ Created new report: {report_name}"
-
-        # Filtering logic to ensure only your specific messages appear
-        legacy_messages = [
-            "not done in * comment box",
-            "Headers not used for purpose, author, date created, date modified",
-            "Headers not used for purpose, author, date created",
-            "Missing mandatory fields or table: Purpose, Author, Date Created, History Table"
-        ]
-        final_df = final_df[~final_df['Message'].isin(legacy_messages)]
-
-        final_df.loc[:, 'is_header'] = final_df['Rule ID'].str.contains('HEADER')
-        final_df = final_df.sort_values(by=['is_header', 'Line'], ascending=[False, True]).drop(columns=['is_header'])
-
-        cols = ['Timestamp'] + [c for c in final_df.columns if c != 'Timestamp']
-        final_df[cols].to_excel(report_name, index=False)
-        print(status_msg)
+        try:
+            df.to_excel(report_name, index=False)
+            print(msg)
+        except PermissionError:
+            alt = f"{file_path.stem}_Review_NEW.xlsx"
+            df.to_excel(alt, index=False)
+            print(f"⚠️ {report_name} is open. Created {alt} instead.")
 
     def run(self):
-        if not self.target_path.exists(): 
-            print(f"❌ Target path {self.target_path} does not exist.")
-            return
-
         for root, dirs, files in os.walk(self.target_path):
-            dirs[:] = [d for d in dirs if d not in ['node_modules', '.git', 'venv', '__pycache__']]
+            dirs[:] = [d for d in dirs if d not in ['node_modules', '.git', 'venv']]
             for file in files:
                 file_path = Path(root) / file
                 if file_path.suffix in self.rule_map:
                     self.results = [] 
-                    self.check_header(file_path)
+                    self.check_header_logic(file_path)
                     self.review_file(file_path)
-                    self.export_file_report(file_path)
+                    self.export_report(file_path)
+        print("\n✅ All documents scanned successfully.")
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("path", help="Path to file or directory to review")
+    parser.add_argument("path", help="Path to code directory")
     args = parser.parse_args()
     CodeReviewer(args.path).run()

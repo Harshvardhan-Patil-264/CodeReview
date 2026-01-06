@@ -4,7 +4,7 @@ import json
 import subprocess
 import pandas as pd
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 
 SUPPORTED_EXTENSIONS = {
     '.js': 'javascript', '.ts': 'typescript', '.java': 'java',
@@ -40,19 +40,34 @@ class CodeReviewer:
             '.java': self.rules_dir / 'java-rules.yml'
         }
 
-    def pre_scan_semgrep(self):
-        """Optimized: Runs Semgrep on the whole folder once per rule file."""
-        print("🚀 Initializing security engine... Please wait.", flush=True)
+    def pre_scan_semgrep(self, specific_path=None):
+        """
+        Optimized: Runs Semgrep on the whole folder OR a single file.
+        If specific_path is provided, it ONLY scans that one file.
+        """
+        scan_target = str(specific_path) if specific_path else str(self.target_path)
+        
+        # Only print 'Security Engine' message if doing a full folder scan (slow)
+        if not specific_path:
+            print("🚀 Initializing security engine... Please wait.", flush=True)
         
         configs_to_run = set()
         if self.common_rules.exists():
             configs_to_run.add(str(self.common_rules))
-        for r_path in self.rule_map.values():
+            
+        # If single file, only load the rule relevant to that extension
+        if specific_path and specific_path.suffix in self.rule_map:
+            r_path = self.rule_map[specific_path.suffix]
             if r_path.exists():
                 configs_to_run.add(str(r_path))
+        else:
+            # Folder scan: load everything
+            for r_path in self.rule_map.values():
+                if r_path.exists():
+                    configs_to_run.add(str(r_path))
 
         for config in configs_to_run:
-            cmd = ["semgrep", "scan", "--quiet", "--config", config, "--json", str(self.target_path)]
+            cmd = ["semgrep", "scan", "--quiet", "--config", config, "--json", scan_target]
             res = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
             if res.stdout.strip():
                 try:
@@ -206,19 +221,30 @@ class CodeReviewer:
             print(f"⚠️ {report_name} is opened. So created another file named {updated_report_name}")
 
     def run(self):
-        # STEP 1: Fast scan everything at once (The Speed Boost)
-        self.pre_scan_semgrep()
-        
-        # STEP 2: Process files one by one with original messages
+        # Gather all valid files first to decide strategy
+        files_to_scan = []
         for root, dirs, files in os.walk(self.target_path):
             dirs[:] = [d for d in dirs if d not in ['node_modules', '.git', 'venv', '__pycache__']]
             for file in files:
                 file_path = Path(root) / file
                 if file_path.suffix in self.rule_map:
-                    self.results = [] 
-                    self.check_header_logic(file_path) # Fast Python logic
-                    self.review_file_fast(file_path)  # Instant cache lookup
-                    self.export_report(file_path)     # Original display messages
+                    files_to_scan.append(file_path)
+
+        # STEP 1: Smart Scan Selection
+        if len(files_to_scan) == 1:
+            # If only 1 file, scan JUST that file for maximum speed
+            self.pre_scan_semgrep(specific_path=files_to_scan[0])
+        elif len(files_to_scan) > 1:
+            # If multiple files, do the folder-wide "Speed Boost" scan
+            self.pre_scan_semgrep()
+        
+        # STEP 2: Process files and Export
+        for file_path in files_to_scan:
+            self.results = [] 
+            self.check_header_logic(file_path) # Fast Python logic
+            self.review_file_fast(file_path)  # Instant cache lookup
+            self.export_report(file_path)     # Original display messages
+            
         print("\n✅ All documents scanned successfully.")
 
 if __name__ == "__main__":

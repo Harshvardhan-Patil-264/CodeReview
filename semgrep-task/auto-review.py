@@ -4,7 +4,7 @@ import json
 import subprocess
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 SUPPORTED_EXTENSIONS = {
     '.js': 'javascript', '.ts': 'typescript', '.java': 'java',
@@ -177,8 +177,13 @@ class CodeReviewer:
                 if all_found_dts:
                     latest_entry = max(all_found_dts, key=lambda x: x[0])
                     latest_dt, latest_line, latest_str = latest_entry
-                    time_diff_mins = abs((actual_mod_dt - latest_dt).total_seconds() / 60)
-                    if time_diff_mins > 5:
+                    
+                    # Calculate difference (Actual - Code)
+                    time_diff_mins = (actual_mod_dt - latest_dt).total_seconds() / 60
+                    
+                    # Error if Code time is in the FUTURE (diff < 0) 
+                    # OR if Code time is > 5 mins BEHIND (diff > 5)
+                    if time_diff_mins < 0 or time_diff_mins > 5:
                         self.results.append({
                             "Timestamp": timestamp, "File": file_path.name, "Line": latest_line,
                             "Rule ID": "HEADER-D", "Severity": "ERROR",
@@ -193,7 +198,6 @@ class CodeReviewer:
 
     def review_file_fast(self, file_path):
         """Pulls findings from memory cache instead of running a subprocess."""
-        print(f"🔍 Scanning document: {file_path.name}...", end="\r", flush=True)
         findings = self.cached_findings.get(file_path.name, [])
         self.results.extend(findings)
 
@@ -232,18 +236,18 @@ class CodeReviewer:
 
         # STEP 1: Smart Scan Selection
         if len(files_to_scan) == 1:
-            # If only 1 file, scan JUST that file for maximum speed
             self.pre_scan_semgrep(specific_path=files_to_scan[0])
         elif len(files_to_scan) > 1:
-            # If multiple files, do the folder-wide "Speed Boost" scan
             self.pre_scan_semgrep()
         
         # STEP 2: Process files and Export
         for file_path in files_to_scan:
+            # Display scanning statement regardless of file count
+            print(f"🔍 Scanning document: {file_path.name}...", end="\r", flush=True)
             self.results = [] 
-            self.check_header_logic(file_path) # Fast Python logic
-            self.review_file_fast(file_path)  # Instant cache lookup
-            self.export_report(file_path)     # Original display messages
+            self.check_header_logic(file_path) 
+            self.review_file_fast(file_path)  
+            self.export_report(file_path)
             
         print("\n✅ All documents scanned successfully.")
 

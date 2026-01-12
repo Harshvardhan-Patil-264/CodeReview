@@ -28,7 +28,24 @@
 
 ## 🎯 How to Use
 
-### Check Code Quality with Semgrep:
+### Automated Code Review (All Languages):
+```bash
+# Navigate to the semgrep-task directory first
+cd semgrep-task
+
+# Run automated review on your code directory
+python auto-review.py "D:\ReviewCode\code"
+
+# Or test with the sample directory
+python auto-review.py "F:\Testing_codeReview\dev"
+```
+
+This will:
+- Scan all supported files (Python, Java, JavaScript, Go)
+- Generate separate Excel reports for each language
+- Display findings with severity levels
+
+### Check Code Quality with Semgrep (Manual):
 ```bash
 cd semgrep-task
 semgrep --config rules/coding-rules.yml code/

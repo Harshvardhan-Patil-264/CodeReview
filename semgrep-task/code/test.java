@@ -11,9 +11,9 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.logging.Logger;
 
-public class JavaRulesTest {
+public class test {
 
-    private static final Logger logger = Logger.getLogger(JavaRulesTest.class.getName());
+    private static final Logger logger = Logger.getLogger(test.class.getName());
 
     // ==========================================
     // RULE 1: Use .equals() for String Comparison

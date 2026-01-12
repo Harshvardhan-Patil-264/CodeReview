@@ -55,9 +55,9 @@ rules:
   # Rule 6: Prefer Interfaces Over Implementations
   - id: java-rule-6-use-interface
     pattern-either:
-      - pattern: ArrayList $VAR = new ArrayList(...)
-      - pattern: HashMap $VAR = new HashMap(...)
-      - pattern: HashSet $VAR = new HashSet(...)
+      - pattern: ArrayList<$T> $VAR = new ArrayList<$T>(...)
+      - pattern: HashMap<$K, $V> $VAR = new HashMap<$K, $V>(...)
+      - pattern: HashSet<$T> $VAR = new HashSet<$T>(...)
     message: "Rule 6: Use interface types (List, Map, Set) instead of concrete implementations"
     languages: [java]
     severity: INFO

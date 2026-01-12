@@ -2,135 +2,344 @@ rules:
   # ==========================================
   # PYTHON SPECIFIC RULES
   # ==========================================
+  
+  # Rule 1: Class Naming Convention (PascalCase)
+  - id: py-rule-1-class-naming-pascalcase
+    pattern: |
+      class $CLASS:
+        ...
+    message: "PY Rule 1: Class names must use PascalCase (e.g., UserProfile, not userprofile or user_profile)"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: naming-convention
+      rule: "PY Rule 1"
+    paths:
+      exclude:
+        - "*.pyi"
+    fix-regex:
+      regex: "^class ([a-z_][a-z0-9_]*)"
+      replacement: "class \\1"
+      count: 1
 
-  # Empty Except Blocks
-  - id: python-empty-except
+  # Rule 2: Function Naming Convention (snake_case)
+  - id: py-rule-2-function-naming-snakecase
+    pattern: |
+      def $FUNC(...):
+        ...
+    message: "PY Rule 2: Function names should use snake_case (e.g., calculate_total, not CalculateTotal or Calculate_Total)"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: naming-convention
+      rule: "PY Rule 2"
+
+  # Rule 3: Constant Naming Convention (UPPER_CASE)
+  - id: py-rule-3-constant-naming-uppercase
+    patterns:
+      - pattern: $CONST = $VALUE
+      - pattern-not-inside: |
+          def $FUNC(...):
+            ...
+      - pattern-not-inside: |
+          class $CLASS:
+            ...
+    message: "PY Rule 3: Module-level constants should use UPPER_CASE (e.g., API_KEY, not apiKey or api_key for constants)"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "PY Rule 3"
+
+  # Rule 4: Avoid Print Statements in Production
+  - id: py-rule-4-no-print-production
+    pattern: print(...)
+    message: "PY Rule 4: Avoid print statements in production. Use logging module (logging.info, logging.debug, etc.)"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: best-practice
+      rule: "PY Rule 4"
+
+  # Rule 5: Always Handle Errors (Empty Except)
+  - id: py-rule-5-empty-except
     pattern: |
       try:
         ...
       except:
         pass
-    message: "Never ignore exceptions. Handle them properly with logging"
+    message: "PY Rule 5: Always handle errors. Never leave except blocks empty - log errors or handle them properly"
     languages: [python]
     severity: ERROR
     metadata:
       category: error-handling
+      rule: "PY Rule 5"
 
-  # Bare Except
-  - id: python-bare-except
+  # Rule 6: Bare Except Clause
+  - id: py-rule-6-bare-except
     pattern: |
       try:
         ...
       except:
         ...
-    message: "Avoid bare except. Catch specific exceptions"
+    message: "PY Rule 6: Avoid bare except clauses. Catch specific exceptions (e.g., except ValueError, except Exception)"
     languages: [python]
     severity: WARNING
     metadata:
       category: error-handling
+      rule: "PY Rule 6"
 
-  # Print Statements
-  - id: python-print-statement
-    pattern: print(...)
-    message: "Avoid print statements in production. Use logging module"
+  # Rule 7: Never Use eval()
+  - id: py-rule-7-no-eval
+    pattern: eval($X)
+    message: "PY Rule 7: Never use eval(). It executes arbitrary code and is a major security risk"
     languages: [python]
-    severity: INFO
+    severity: ERROR
     metadata:
-      category: best-practice
+      category: security
+      cwe: CWE-95
+      rule: "PY Rule 7"
 
-  # Mutable Default Argument
-  - id: python-mutable-default
+  # Rule 8: Mutable Default Arguments
+  - id: py-rule-8-mutable-default
     pattern-either:
       - pattern: |
-          def $FUNC($PARAM=[]):
+          def $FUNC($PARAM=[...]):
             ...
       - pattern: |
-          def $FUNC($PARAM={}):
+          def $FUNC($PARAM={...}):
             ...
-    message: "Mutable default arguments are dangerous. Use None and initialize inside function"
+    message: "PY Rule 8: Mutable default arguments are dangerous. Use None and initialize inside function"
     languages: [python]
     severity: ERROR
     metadata:
       category: best-practice
+      rule: "PY Rule 8"
 
-  # Assert in production
-  - id: python-assert-usage
-    pattern: assert $COND
-    message: "Don't use assert for validation. Assertions can be disabled with -O flag"
+  # Rule 9: Reduce Nested Code
+  - id: py-rule-9-reduce-nesting
+    pattern: |
+      if $COND1:
+        ...
+        if $COND2:
+          ...
+          if $COND3:
+            ...
+    message: "PY Rule 9: Reduce nested code. Use early returns or guard clauses to improve readability"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: code-quality
+      rule: "PY Rule 9"
+
+  # Rule 10: Single Responsibility Principle (Long Functions)
+  - id: py-rule-10-single-responsibility
+    pattern: |
+      def $FUNC(...):
+        $S1
+        $S2
+        $S3
+        $S4
+        $S5
+        $S6
+        $S7
+        $S8
+        $S9
+        $S10
+        $S11
+        $S12
+    message: "PY Rule 10: One function should do one thing. Break down large functions following Single Responsibility Principle"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: code-quality
+      rule: "PY Rule 10"
+
+  # Rule 11: Do Not Modify Function Parameters
+  - id: py-rule-11-no-param-mutation
+    pattern: |
+      def $FUNC($PARAM):
+        ...
+        $PARAM = ...
+        ...
+    message: "PY Rule 11: Do not reassign function parameters. Create new variables to avoid confusion"
     languages: [python]
     severity: WARNING
     metadata:
       category: best-practice
+      rule: "PY Rule 11"
 
-  # Weak Hashing
-  - id: python-weak-hash
+  # Rule 12: Use Default Parameters Instead of Manual Checks
+  - id: py-rule-12-default-params
+    pattern: |
+      def $FUNC($PARAM=None):
+        if not $PARAM:
+          $PARAM = $DEFAULT
+        ...
+    message: "PY Rule 12: Use default parameters instead of manual checks (e.g., def log(level='info'))"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: best-practice
+      rule: "PY Rule 12"
+
+  # Rule 13: Weak Hashing Algorithms
+  - id: py-rule-13-weak-hash
     pattern-either:
       - pattern: hashlib.md5(...)
       - pattern: hashlib.sha1(...)
-    message: "MD5 and SHA1 are cryptographically broken. Use SHA-256 or stronger"
+    message: "PY Rule 13: MD5 and SHA1 are cryptographically broken. Use SHA-256 or stronger (hashlib.sha256)"
     languages: [python]
     severity: ERROR
     metadata:
       category: security
       cwe: CWE-327
+      rule: "PY Rule 13"
 
-  # Pickle Security
-  - id: python-pickle-unsafe
+  # Rule 14: Pickle Security Risk
+  - id: py-rule-14-pickle-unsafe
     pattern: pickle.loads($DATA)
-    message: "pickle.loads() can execute arbitrary code. Never unpickle untrusted data"
+    message: "PY Rule 14: pickle.loads() can execute arbitrary code. Never unpickle untrusted data"
     languages: [python]
     severity: ERROR
     metadata:
       category: security
       cwe: CWE-502
+      rule: "PY Rule 14"
 
-  # Shell Injection
-  - id: python-shell-injection
+  # Rule 15: Shell Injection Vulnerability
+  - id: py-rule-15-shell-injection
     pattern: os.system($CMD)
-    message: "os.system() is vulnerable to shell injection. Use subprocess with shell=False"
+    message: "PY Rule 15: os.system() is vulnerable to shell injection. Use subprocess with shell=False"
     languages: [python]
     severity: ERROR
     metadata:
       category: security
       cwe: CWE-78
+      rule: "PY Rule 15"
 
-  # Hardcoded Temp Path
-  - id: python-hardcoded-temp
+  # Rule 16: Hardcoded Temp Paths
+  - id: py-rule-16-hardcoded-temp
     pattern-either:
       - pattern: open("/tmp/...")
       - pattern: open("/var/tmp/...")
-    message: "Hardcoded temp paths are insecure. Use tempfile module"
+    message: "PY Rule 16: Hardcoded temp paths are insecure. Use tempfile module (tempfile.NamedTemporaryFile)"
     languages: [python]
     severity: WARNING
     metadata:
       category: security
+      rule: "PY Rule 16"
 
-  # Requests without timeout
-  - id: python-requests-no-timeout
+  # Rule 17: HTTP Requests Without Timeout
+  - id: py-rule-17-requests-no-timeout
     pattern: requests.$METHOD($URL)
-    message: "HTTP requests should have timeout to prevent hanging"
+    message: "PY Rule 17: HTTP requests should have timeout to prevent hanging (e.g., requests.get(url, timeout=5))"
     languages: [python]
     severity: WARNING
     metadata:
       category: reliability
+      rule: "PY Rule 17"
 
-  # SQL Injection
-  - id: python-sql-injection
-    pattern: |
-      $CURSOR.execute("... " + $VAR + " ...")
-    message: "SQL injection vulnerability. Use parameterized queries"
+  # Rule 18: SQL Injection Vulnerability
+  - id: py-rule-18-sql-injection
+    pattern-either:
+      - pattern: $CURSOR.execute("... " + $VAR + " ...")
+      - pattern: $CURSOR.execute(f"... {$VAR} ...")
+    message: "PY Rule 18: SQL injection vulnerability. Use parameterized queries (cursor.execute(query, params))"
     languages: [python]
     severity: ERROR
     metadata:
       category: security
       cwe: CWE-89
+      rule: "PY Rule 18"
 
-  # Dangerous YAML load
-  - id: python-yaml-unsafe
+  # Rule 19: Dangerous YAML Load
+  - id: py-rule-19-yaml-unsafe
     pattern: yaml.load($DATA)
-    message: "yaml.load() can execute arbitrary code. Use yaml.safe_load()"
+    message: "PY Rule 19: yaml.load() can execute arbitrary code. Use yaml.safe_load() instead"
     languages: [python]
     severity: ERROR
     metadata:
       category: security
       cwe: CWE-502
+      rule: "PY Rule 19"
+
+  # Rule 20: Assert in Production Code
+  - id: py-rule-20-assert-usage
+    pattern: assert $COND
+    message: "PY Rule 20: Don't use assert for validation. Assertions can be disabled with -O flag. Use explicit if statements"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: best-practice
+      rule: "PY Rule 20"
+
+  # Rule 21: String Concatenation in Loops
+  - id: py-rule-21-string-concat-loop
+    pattern: |
+      for $VAR in $ITER:
+        ...
+        $STR = $STR + ...
+        ...
+    message: "PY Rule 21: Avoid string concatenation in loops. Use list and ''.join() for better performance"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: performance
+      rule: "PY Rule 21"
+
+  # Rule 22: Use List Comprehension
+  - id: py-rule-22-use-list-comprehension
+    pattern: |
+      $RESULT = []
+      for $ITEM in $ITER:
+        $RESULT.append($ITEM $OP ...)
+    message: "PY Rule 22: Use list comprehension for cleaner code (e.g., result = [x * 2 for x in arr])"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: best-practice
+      rule: "PY Rule 22"
+
+  # Rule 23: Method Naming Convention
+  - id: py-rule-23-method-naming-snakecase
+    pattern: |
+      class $CLASS:
+        ...
+        def $METHOD(...):
+          ...
+    message: "PY Rule 23: Method names should use snake_case (e.g., print_data, not PrintData)"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: naming-convention
+      rule: "PY Rule 23"
+
+  # Rule 24: Variable Naming Convention
+  - id: py-rule-24-variable-naming-snakecase
+    pattern-either:
+      - pattern: |
+          def $FUNC(...):
+            $VAR = $VALUE
+      - pattern: |
+          class $CLASS:
+            def $METHOD(...):
+              $VAR = $VALUE
+    message: "PY Rule 24: Variable names should use snake_case (e.g., user_name, not userName or User_Name)"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "PY Rule 24"
+
+  # Rule 25: Avoid Type Comparison with type()
+  - id: py-rule-25-avoid-type-comparison
+    pattern-either:
+      - pattern: type($VAR) == $TYPE
+      - pattern: type($VAR) is $TYPE
+    message: "PY Rule 25: Use isinstance() instead of type() for type checking (e.g., isinstance(x, int))"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: best-practice
+      rule: "PY Rule 25"

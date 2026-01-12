@@ -233,3 +233,73 @@ rules:
     metadata:
       category: code-quality
       rule: "JS Rule 20"
+
+  # ==========================================
+  # NAMING CONVENTION RULES
+  # ==========================================
+
+  # Rule 21: Class Names Should Use PascalCase
+  - id: js-rule-21-class-naming-pascalcase
+    pattern: |
+      class $CLASS {
+        ...
+      }
+    message: "Rule 21: Class names should use PascalCase (e.g., UserProfile, not userProfile or user_profile)"
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      category: naming-convention
+      rule: "JS Rule 21"
+
+  # Rule 22: Function Names Should Use camelCase
+  - id: js-rule-22-function-naming-camelcase
+    pattern-either:
+      - pattern: |
+          function $FUNC(...) {
+            ...
+          }
+      - pattern: |
+          const $FUNC = function(...) {
+            ...
+          }
+    message: "Rule 22: Function names should use camelCase (e.g., calculateTotal, not CalculateTotal or calculate_total)"
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      category: naming-convention
+      rule: "JS Rule 22"
+
+  # Rule 23: Variable Names Should Use camelCase
+  - id: js-rule-23-variable-naming-camelcase
+    pattern-either:
+      - pattern: const $VAR = $VALUE
+      - pattern: let $VAR = $VALUE
+      - pattern: var $VAR = $VALUE
+    message: "Rule 23: Variable names should use camelCase (e.g., userName, not user_name or UserName)"
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "JS Rule 23"
+
+  # Rule 24: Constants Should Use UPPER_CASE
+  - id: js-rule-24-constant-naming-uppercase
+    pattern: const $CONST = $VALUE
+    message: "Rule 24: Constants should use UPPER_CASE with underscores (e.g., MAX_RETRIES, API_KEY, not maxRetries or apiKey for true constants)"
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "JS Rule 24"
+
+  # Rule 25: Avoid Single Letter Variable Names (Except Loop Counters)
+  - id: js-rule-25-no-single-letter-vars
+    pattern-either:
+      - pattern: const $X = $VALUE
+      - pattern: let $X = $VALUE
+    message: "Rule 25: Avoid single-letter variable names except for loop counters (i, j, k). Use descriptive names"
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "JS Rule 25"

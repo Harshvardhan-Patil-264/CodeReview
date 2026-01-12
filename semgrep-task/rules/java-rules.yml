@@ -158,3 +158,64 @@ rules:
     metadata:
       category: security
       cwe: CWE-327
+
+  # ==========================================
+  # NAMING CONVENTION RULES
+  # ==========================================
+
+  # Rule 21: Class Names Should Use PascalCase
+  - id: java-rule-21-class-naming-pascalcase
+    pattern: |
+      class $CLASS {
+        ...
+      }
+    message: "Java Rule 21: Class names should use PascalCase (e.g., UserService, not userService or user_service)"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: naming-convention
+      rule: "Java Rule 21"
+
+  # Rule 22: Method Names Should Use camelCase
+  - id: java-rule-22-method-naming-camelcase
+    pattern: |
+      public $TYPE $METHOD(...) {
+        ...
+      }
+    message: "Java Rule 22: Method names should use camelCase (e.g., calculateTotal, not CalculateTotal or calculate_total)"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: naming-convention
+      rule: "Java Rule 22"
+
+  # Rule 23: Variable Names Should Use camelCase
+  - id: java-rule-23-variable-naming-camelcase
+    pattern: $TYPE $VAR = $VALUE
+    message: "Java Rule 23: Variable names should use camelCase (e.g., userName, not user_name or UserName)"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Java Rule 23"
+
+  # Rule 24: Constants Should Use UPPER_CASE
+  - id: java-rule-24-constant-naming-uppercase
+    pattern: |
+      static final $TYPE $CONST = $VALUE
+    message: "Java Rule 24: Constants should use UPPER_CASE with underscores (e.g., MAX_RETRIES, API_KEY)"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Java Rule 24"
+
+  # Rule 25: Package Names Should Be Lowercase
+  - id: java-rule-25-package-naming-lowercase
+    pattern: package $PKG
+    message: "Java Rule 25: Package names should be all lowercase (e.g., com.example.project, not com.Example.Project)"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Java Rule 25"

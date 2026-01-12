@@ -138,3 +138,78 @@ rules:
     metadata:
       category: code-quality
       rule: "Go Rule 18"
+
+  # ==========================================
+  # NAMING CONVENTION RULES
+  # ==========================================
+
+  # Rule 20: Use fmt.Println Sparingly in Production
+  - id: go-rule-20-no-fmt-println
+    pattern-either:
+      - pattern: fmt.Println(...)
+      - pattern: fmt.Printf(...)
+      - pattern: fmt.Print(...)
+    message: "Go Rule 20: Avoid fmt.Println in production. Use proper logging (log package or structured logger)"
+    languages: [go]
+    severity: WARNING
+    metadata:
+      category: best-practice
+      rule: "Go Rule 20"
+
+  # Rule 21: Exported Names Should Use PascalCase
+  - id: go-rule-21-exported-naming-pascalcase
+    pattern: |
+      type $TYPE struct {
+        ...
+      }
+    message: "Go Rule 21: Exported types should use PascalCase (e.g., UserService, not userService)"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Go Rule 21"
+
+  # Rule 22: Function Names Should Use camelCase or PascalCase
+  - id: go-rule-22-function-naming
+    pattern: |
+      func $FUNC(...) ... {
+        ...
+      }
+    message: "Go Rule 22: Use PascalCase for exported functions, camelCase for unexported (e.g., CalculateTotal or calculateTotal)"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Go Rule 22"
+
+  # Rule 23: Variable Names Should Use camelCase
+  - id: go-rule-23-variable-naming-camelcase
+    pattern: |
+      $VAR := $VALUE
+    message: "Go Rule 23: Variable names should use camelCase (e.g., userName, not user_name or UserName for local vars)"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Go Rule 23"
+
+  # Rule 24: Constants Should Use PascalCase or camelCase
+  - id: go-rule-24-constant-naming
+    pattern: |
+      const $CONST = $VALUE
+    message: "Go Rule 24: Use PascalCase for exported constants, camelCase for unexported (e.g., MaxRetries or maxRetries)"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Go Rule 24"
+
+  # Rule 25: Package Names Should Be Lowercase
+  - id: go-rule-25-package-naming-lowercase
+    pattern: package $PKG
+    message: "Go Rule 25: Package names should be lowercase, single word (e.g., package http, not package HTTP or httpUtils)"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Go Rule 25"

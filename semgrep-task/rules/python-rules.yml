@@ -343,3 +343,20 @@ rules:
     metadata:
       category: best-practice
       rule: "PY Rule 25"
+
+  # AI-Generated Rule
+  - - id: python-rule-1-hardcoded-passwords
+      pattern-either:
+      - pattern: password = "$PASSWORD"
+      - pattern: pwd = "$PASSWORD"
+      - pattern: passwd = "$PASSWORD"
+      - pattern: $FUNC("...password=$PASSWORD...")
+      message: 'Rule 1: Hardcoded passwords are a security risk. Use environment variables
+        or a secure secrets manager to store sensitive credentials'
+      languages:
+      - python
+      severity: ERROR
+      metadata:
+        category: security
+        cwe: CWE-798
+        rule: PYTHON Rule 1

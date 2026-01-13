@@ -1,0 +1,15 @@
+# Requirements for AI Rule Generator
+
+# Core dependencies
+python-dotenv==1.0.0      # Load environment variables from .env file
+requests==2.31.0          # HTTP requests to Groq API (avoids Python 3.14 issues)
+pyyaml==6.0.1             # YAML parsing and generation
+
+# Flask API (for web integration)
+flask==3.0.0              # Web framework
+flask-cors==4.0.0         # CORS support for React frontend
+
+# Existing dependencies (if not already installed)
+semgrep==1.146.0          # Semgrep for code analysis
+pandas==2.3.3             # Data processing for reports
+openpyxl==3.1.5           # Excel report generation

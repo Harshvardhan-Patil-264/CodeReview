@@ -1,10 +1,23 @@
 import os
 import re
 import json
+import semgrep
 import subprocess
 import pandas as pd
+import sys
 from pathlib import Path
 from datetime import datetime, timedelta
+from github_handler import process_input
+
+
+def run_semgrep_scan(target_path, rules_path="rules"):
+    """
+    Run Semgrep scan on the target directory
+    
+    Args:
+        target_path: Path to the code directory to scan
+        rules_path: Path to the rules directory
+    """
 
 SUPPORTED_EXTENSIONS = {
     '.js': 'javascript', '.ts': 'typescript', '.java': 'java',
@@ -251,9 +264,30 @@ class CodeReviewer:
             
         print("\n✅ All documents scanned successfully.")
 
+
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("path", help="Path to code directory")
+    parser = argparse.ArgumentParser(description='Code Review Tool - Supports local folders and GitHub repositories')
+    parser.add_argument("path", help="Path to code directory OR GitHub repository URL")
     args = parser.parse_args()
-    CodeReviewer(args.path).run()
+    
+    # Process input (local folder or GitHub URL)
+    target_path, is_github, repo_info, github_handler = process_input(args.path)
+    
+    if target_path:
+        try:
+            if is_github:
+                print(f"\n📦 Analyzing GitHub Repository: {repo_info['full_name']}")
+                print(f"🔗 URL: {repo_info['url']}\n")
+            
+            # Run code review
+            CodeReviewer(target_path).run()
+            
+        finally:
+            # Cleanup if it was a GitHub repo
+            if is_github and github_handler:
+                github_handler.cleanup()
+    else:
+        print("❌ Invalid input. Please provide a valid folder path or GitHub URL.")
+        sys.exit(1)
+

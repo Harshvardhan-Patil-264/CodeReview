@@ -118,6 +118,7 @@ FORMAT (follow this EXACTLY):
 REQUIREMENTS:
 - ID: {language.lower()}-rule-X-descriptive-name
 - Use pattern-either for multiple patterns
+- IMPORTANT: Quote all pattern values (e.g., pattern: "some code") to prevent YAML parsing errors with colons
 - Message: "Rule X: [explain WHY bad] [suggest WHAT to do]"
 - Severity: {severity}
 - Metadata: category={category}, rule="{language.upper()} Rule X"
@@ -368,29 +369,67 @@ if __name__ == "__main__":
         print("   GET  /health - Health check")
         print("=" * 60)
         app.run(debug=True, port=5000, host='0.0.0.0')
-    else:
-        # CLI usage example
+    elif len(sys.argv) > 1:
+        # CLI usage with arguments
         print("AI-Powered Semgrep Rule Generator")
         print("=" * 50)
         
         # Initialize generator
         generator = RuleGenerator()
         
-        # Example: Generate a rule
-        description = "detect when someone uses eval() function"
-        language = "python"
+        description = sys.argv[1]
+        language = sys.argv[2] if len(sys.argv) > 2 else "python"
         
-        print(f"\n📝 Generating rule for: {description}")
-        print(f"🔤 Language: {language}\n")
+        print(f"\n[*] Generating rule for: {description}")
+        print(f"[LANG] Language: {language}\n")
         
-        result = generator.generate_and_save(
-            description=description,
-            language=language,
-            severity="ERROR",
-            category="security"
-        )
+        try:
+            result = generator.generate_and_save(
+                description=description,
+                language=language,
+                severity="WARNING",
+                category="security"
+            )
+            
+            print("[SUCCESS] Rule generated successfully!")
+            print(f"[FILE] Saved to: {result['file_path']}")
+            print(f"\n[RULE] Generated rule:")
+            print(yaml.dump([result['rule']], default_flow_style=False, sort_keys=False))
+        except Exception as e:
+            print(f"[ERROR] Error generating rule: {e}")
+
+    else:
+        # Interactive mode
+        print("AI-Powered Semgrep Rule Generator")
+        print("=" * 50)
         
-        print("✅ Rule generated successfully!")
-        print(f"📁 Saved to: {result['file_path']}")
-        print(f"\n📋 Generated rule:")
-        print(yaml.dump([result['rule']], default_flow_style=False, sort_keys=False))
+        # Initialize generator
+        generator = RuleGenerator()
+        
+        print("\nEnter rule details below:")
+        description = input("📝 Rule Description: ")
+        while not description.strip():
+            print("❌ Description is required!")
+            description = input("📝 Rule Description: ")
+            
+        language = input("🔤 Language (default: python): ").strip()
+        if not language:
+            language = "python"
+        
+        print(f"\nGenerating rule for: {description}")
+        print(f"Language: {language}\n")
+        
+        try:
+            result = generator.generate_and_save(
+                description=description,
+                language=language,
+                severity="WARNING",
+                category="security"
+            )
+            
+            print("✅ Rule generated successfully!")
+            print(f"📁 Saved to: {result['file_path']}")
+            print(f"\n📋 Generated rule:")
+            print(yaml.dump([result['rule']], default_flow_style=False, sort_keys=False))
+        except Exception as e:
+            print(f"❌ Error generating rule: {e}")

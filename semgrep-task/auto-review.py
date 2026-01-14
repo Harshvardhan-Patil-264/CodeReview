@@ -3,6 +3,7 @@ import re
 import json
 import semgrep
 import subprocess
+import shutil
 import pandas as pd
 import sys
 from pathlib import Path
@@ -62,7 +63,7 @@ class CodeReviewer:
         
         # Only print 'Security Engine' message if doing a full folder scan (slow)
         if not specific_path:
-            print("🚀 Initializing security engine... Please wait.", flush=True)
+            print("[*] Initializing security engine... Please wait.", flush=True)
         
         configs_to_run = set()
         if self.common_rules.exists():
@@ -79,9 +80,16 @@ class CodeReviewer:
                 if r_path.exists():
                     configs_to_run.add(str(r_path))
 
+        # Find semgrep executable using PATH (finds Python314's working version)
+        semgrep_cmd = shutil.which("semgrep")
+        if not semgrep_cmd:
+            # Fallback: try to find it manually
+            semgrep_cmd = "semgrep"
+
         for config in configs_to_run:
-            cmd = ["semgrep", "scan", "--quiet", "--config", config, "--json", scan_target]
+            cmd = [semgrep_cmd, "scan", "--no-git-ignore", "--config", config, "--json", scan_target]
             res = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
+                
             if res.stdout.strip():
                 try:
                     data = json.loads(res.stdout)
@@ -228,9 +236,9 @@ class CodeReviewer:
             df.to_excel(report_name, index=False)
             print(" " * 80, end="\r") 
             if is_update:
-                print(f"🔄 Updated report : {report_name}")
+                print(f"[UPDATE] Updated report : {report_name}")
             else:
-                print(f"✨ Created new report: {report_name}")
+                print(f"[SUCCESS] Created new report: {report_name}")
         except PermissionError:
             updated_report_name = f"{file_path.stem}_Review_updated.xlsx"
             df.to_excel(updated_report_name, index=False)
@@ -256,13 +264,13 @@ class CodeReviewer:
         # STEP 2: Process files and Export
         for file_path in files_to_scan:
             # Display scanning statement regardless of file count
-            print(f"🔍 Scanning document: {file_path.name}...", end="\r", flush=True)
+            print(f"[SCAN] Scanning document: {file_path.name}...", end="\r", flush=True)
             self.results = [] 
             self.check_header_logic(file_path) 
             self.review_file_fast(file_path)  
             self.export_report(file_path)
             
-        print("\n✅ All documents scanned successfully.")
+        print("\n[DONE] All documents scanned successfully.")
 
 
 if __name__ == "__main__":
@@ -277,8 +285,8 @@ if __name__ == "__main__":
     if target_path:
         try:
             if is_github:
-                print(f"\n📦 Analyzing GitHub Repository: {repo_info['full_name']}")
-                print(f"🔗 URL: {repo_info['url']}\n")
+                print(f"\n[REPO] Analyzing GitHub Repository: {repo_info['full_name']}")
+                print(f"[URL] URL: {repo_info['url']}\n")
             
             # Run code review
             CodeReviewer(target_path).run()

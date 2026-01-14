@@ -344,19 +344,18 @@ rules:
       category: best-practice
       rule: "PY Rule 25"
 
+
   # AI-Generated Rule
-  - - id: python-rule-1-hardcoded-passwords
-      pattern-either:
-      - pattern: password = "$PASSWORD"
-      - pattern: pwd = "$PASSWORD"
-      - pattern: passwd = "$PASSWORD"
-      - pattern: $FUNC("...password=$PASSWORD...")
-      message: 'Rule 1: Hardcoded passwords are a security risk. Use environment variables
-        or a secure secrets manager to store sensitive credentials'
-      languages:
-      - python
-      severity: ERROR
-      metadata:
-        category: security
-        cwe: CWE-798
-        rule: PYTHON Rule 1
+  - id: python-rule-1-eval-injection
+    pattern-either:
+    - pattern: eval($EXPR)
+    - pattern: eval("$EXPR")
+    message: 'Rule 1: eval statement can pose a security risk, consider using safer
+      alternatives like ast.literal_eval or json.loads'
+    languages:
+    - python
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-95
+      rule: PYTHON Rule 1

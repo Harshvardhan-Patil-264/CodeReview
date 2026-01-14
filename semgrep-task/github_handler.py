@@ -59,7 +59,7 @@ class GitHubHandler:
         if not github_url.endswith('.git') and github_url.startswith('https://'):
             github_url = f'{github_url}.git'
         
-        print(f"🔄 Cloning repository from {github_url}...")
+        print(f"[*] Cloning repository from {github_url}...")
         
         try:
             # Clone the repository
@@ -73,7 +73,7 @@ class GitHubHandler:
             if result.returncode != 0:
                 raise Exception(f"Git clone failed: {result.stderr}")
             
-            print(f"✅ Repository cloned to: {self.temp_dir}")
+            print(f"[SUCCESS] Repository cloned to: {self.temp_dir}")
             return self.temp_dir
             
         except subprocess.TimeoutExpired:
@@ -134,9 +134,9 @@ class GitHubHandler:
                         raise
                 
                 shutil.rmtree(self.temp_dir, onerror=handle_remove_readonly)
-                print(f"🧹 Cleaned up temporary directory: {self.temp_dir}")
+                print(f"[CLEANUP] Cleaned up temporary directory: {self.temp_dir}")
             except Exception as e:
-                print(f"⚠️  Warning: Failed to cleanup {self.temp_dir}: {e}")
+                print(f"[WARNING] Failed to cleanup {self.temp_dir}: {e}")
             finally:
                 self.temp_dir = None
 
@@ -165,14 +165,14 @@ def process_input(user_input: str) -> tuple:
             return cloned_path, True, repo_info, handler
             
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f"[ERROR] {e}")
             return None, False, None, None
     else:
         # It's a local folder path
         if os.path.exists(user_input):
             return user_input, False, None, None
         else:
-            print(f"❌ Error: Path does not exist: {user_input}")
+            print(f"[ERROR] Path does not exist: {user_input}")
             return None, False, None, None
 
 
@@ -190,11 +190,11 @@ if __name__ == "__main__":
     path, is_github, repo_info, handler = process_input(user_input)
     
     if path:
-        print(f"\n📁 Path to analyze: {path}")
+        print(f"\n[PATH] Path to analyze: {path}")
         
         if is_github:
-            print(f"📦 Repository: {repo_info['full_name']}")
-            print(f"🔗 URL: {repo_info['url']}")
+            print(f"[REPO] Repository: {repo_info['full_name']}")
+            print(f"[URL] URL: {repo_info['url']}")
         
         # Your code review logic here
         # ...
@@ -203,5 +203,5 @@ if __name__ == "__main__":
         if is_github and handler:
             handler.cleanup()
     else:
-        print("❌ Failed to process input")
+        print("[ERROR] Failed to process input")
         sys.exit(1)

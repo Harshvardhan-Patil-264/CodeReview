@@ -10,4 +10,4 @@ for i, row in df.iterrows():
     print(f"Severity: {row['Severity']}")
     print(f"Line: {row['Line']}")
     print(f"File: {row['File']}")
-    print(f"Message: {row['Message']}")
+    print(f"Message: {row['Message']}") 

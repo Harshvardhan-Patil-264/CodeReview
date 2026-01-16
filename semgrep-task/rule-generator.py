@@ -28,12 +28,276 @@ class RuleGenerator:
         
         self.api_url = "https://api.groq.com/openai/v1/chat/completions"
         self.model = "llama-3.3-70b-versatile"  # Updated to active model (Jan 2026)
+    
+    def validate_description(self, description: str) -> Dict:
+        """
+        Validate if the description is meaningful or garbage using AI
+        
+        Args:
+            description: The rule description to validate
+            
+        Returns:
+            Dictionary with validation results:
+            {
+                "is_valid": bool,
+                "quality_score": int (0-100),
+                "reason": str
+            }
+        """
+        # Quick checks for obviously bad input
+        if not description or len(description.strip()) < 5:
+            return {
+                "is_valid": False,
+                "quality_score": 0,
+                "reason": "Description is too short (minimum 5 characters)"
+            }
+        
+        # Use AI to validate the description
+        validation_prompt = f"""Analyze this rule description for quality and meaningfulness:
+"{description}"
+
+Is this a valid, meaningful code review rule description?
+Respond with JSON only (no other text):
+{{
+  "is_valid": true/false,
+  "quality_score": 0-100,
+  "reason": "brief explanation"
+}}
+
+Examples of GARBAGE (invalid): random characters ("asdfgh zxcv"), nonsense words, unrelated topics, empty/vague requests.
+Examples of VALID: "detect SQL injection", "find hardcoded passwords", "check for missing error handling".
+
+Be strict. Quality score: 0-30=garbage, 31-60=poor, 61-80=good, 81-100=excellent.
+"""
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a strict validator for code review rule descriptions. Return ONLY valid JSON."
+                },
+                {
+                    "role": "user",
+                    "content": validation_prompt
+                }
+            ],
+            "temperature": 0.3,
+            "max_tokens": 200
+        }
+        
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload, timeout=15)
+            
+            if response.status_code != 200:
+                # If validation API fails, assume valid but warn
+                return {
+                    "is_valid": True,
+                    "quality_score": 60,
+                    "reason": "Could not validate description (API error), proceeding with generation"
+                }
+            
+            result = response.json()
+            validation_text = result['choices'][0]['message']['content'].strip()
+            
+            # Clean up JSON if wrapped in markdown
+            if validation_text.startswith("```json"):
+                validation_text = validation_text.split("```json")[1].split("```")[0].strip()
+            elif validation_text.startswith("```"):
+                validation_text = validation_text.split("```")[1].split("```")[0].strip()
+            
+            # Parse JSON response
+            validation_result = json.loads(validation_text)
+            return validation_result
+            
+        except Exception as e:
+            # If validation fails, assume valid but warn
+            print(f"⚠️ Validation error: {e}")
+            return {
+                "is_valid": True,
+                "quality_score": 60,
+                "reason": f"Validation check failed: {str(e)}, proceeding anyway"
+            }
+    
+    def check_duplicates(self, rule_id: str, language: str, rules_dir: str = "rules", new_rule: Dict = None) -> Dict:
+        """
+        Check if a similar rule already exists in the rule file
+        
+        Args:
+            rule_id: The ID of the new rule to check
+            language: Programming language
+            rules_dir: Directory containing rule files
+            new_rule: The new rule dict to compare patterns/messages
+            
+        Returns:
+            Dictionary with duplicate check results:
+            {
+                "has_duplicates": bool,
+                "similar_rules": [list of similar rule IDs with reasons]
+            }
+        """
+        rule_file = os.path.join(rules_dir, f"{language.lower()}-rules.yml")
+        
+        if not os.path.exists(rule_file):
+            return {
+                "has_duplicates": False,
+                "similar_rules": []
+            }
+        
+        try:
+            with open(rule_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+                existing_rules = yaml.safe_load(content)
+            
+            if not existing_rules or 'rules' not in existing_rules:
+                return {
+                    "has_duplicates": False,
+                    "similar_rules": []
+                }
+            
+            similar_rules = []
+            rules_list = existing_rules.get('rules', [])
+            
+            # Ensure rules_list is actually a list
+            if not isinstance(rules_list, list):
+                return {
+                    "has_duplicates": False,
+                    "similar_rules": [],
+                    "error": "Rules format is invalid"
+                }
+            
+            # Helper function to normalize patterns for comparison
+            def normalize_pattern(pattern_str):
+                """Normalize a pattern by removing variables and extra syntax"""
+                if not isinstance(pattern_str, str):
+                    return ""
+                
+                # Convert to lowercase
+                p = pattern_str.lower()
+                
+                # Replace all metavariables ($VAR, $X, $Y, etc.) with a placeholder
+                import re
+                p = re.sub(r'\$\w+', '$VAR', p)
+                
+                # Remove common syntax elements
+                p = p.replace('if ', '').replace('while ', '').replace(':', '')
+                p = p.replace(' ', '').replace('\n', '').replace('\t', '')
+                
+                # Remove quotes
+                p = p.replace('"', '').replace("'", '')
+                
+                return p
+            
+            # Helper function to check pattern similarity
+            def patterns_overlap(patterns1, patterns2):
+                """Check if two pattern lists have overlapping patterns"""
+                if not patterns1 or not patterns2:
+                    return False
+                
+                # Extract pattern strings from various formats
+                def extract_patterns(p):
+                    if isinstance(p, list):
+                        result = []
+                        for item in p:
+                            if isinstance(item, dict):
+                                if 'pattern' in item:
+                                    result.append(str(item['pattern']))
+                            elif isinstance(item, str):
+                                result.append(item)
+                        return result
+                    return []
+                
+                patterns1_list = extract_patterns(patterns1)
+                patterns2_list = extract_patterns(patterns2)
+                
+                # Normalize and compare
+                normalized1 = [normalize_pattern(p) for p in patterns1_list]
+                normalized2 = [normalize_pattern(p) for p in patterns2_list]
+                
+                # Check for matches
+                for p1 in normalized1:
+                    for p2 in normalized2:
+                        # Check if patterns are very similar (substring or exact match)
+                        if p1 and p2:
+                            if p1 == p2 or (len(p1) > 5 and p1 in p2) or (len(p2) > 5 and p2 in p1):
+                                return True
+                            
+                            # Check for high similarity (e.g., >= 70% character overlap)
+                            if len(p1) > 5 and len(p2) > 5:
+                                shorter = min(p1, p2, key=len)
+                                longer = max(p1, p2, key=len)
+                                matches = sum(c in longer for c in shorter)
+                                similarity = matches / len(shorter)
+                                if similarity >= 0.7:
+                                    return True
+                
+                return False
+            
+            for rule in rules_list:
+                # Safely check if rule is a dict
+                if not isinstance(rule, dict):
+                    continue
+                
+                reasons = []
+                
+                # Check 1: Exact ID match
+                if rule.get('id') == rule_id:
+                    reasons.append("exact ID match")
+                
+                # Check 2: Similar patterns (if new_rule provided)
+                if new_rule and 'pattern-either' in new_rule and 'pattern-either' in rule:
+                    if patterns_overlap(new_rule.get('pattern-either'), rule.get('pattern-either')):
+                        reasons.append("similar patterns detected")
+                
+                # Check 3: Very similar messages (keyword overlap)
+                if new_rule and 'message' in new_rule and 'message' in rule:
+                    new_msg = str(new_rule.get('message', '')).lower()
+                    existing_msg = str(rule.get('message', '')).lower()
+                    
+                    # Extract key words (ignore common words)
+                    common_words = {'the', 'a', 'an', 'to', 'for', 'use', 'instead', 'of', 'with', 'is', 'are'}
+                    new_words = set(new_msg.split()) - common_words
+                    existing_words = set(existing_msg.split()) - common_words
+                    
+                    # If 50%+ of meaningful words overlap, consider similar
+                    if new_words and existing_words:
+                        overlap = len(new_words & existing_words) / min(len(new_words), len(existing_words))
+                        if overlap > 0.5:
+                            reasons.append(f"similar message ({int(overlap*100)}% keyword overlap)")
+                
+                if reasons:
+                    similar_rules.append({
+                        "id": rule.get('id', 'unknown'),
+                        "reasons": reasons,
+                        "patterns": rule.get('pattern-either', rule.get('pattern', [])),
+                        "message": rule.get('message', ''),
+                        "severity": rule.get('severity', 'WARNING')
+                    })
+            
+            return {
+                "has_duplicates": len(similar_rules) > 0,
+                "similar_rules": similar_rules
+            }
+            
+        except Exception as e:
+            print(f"⚠️ Duplicate check error: {e}")
+            return {
+                "has_duplicates": False,
+                "similar_rules": [],
+                "error": str(e)
+            }
         
     def generate_rule(self, 
                      description: str, 
                      language: str,
                      severity: str = "WARNING",
-                     category: str = "best-practice") -> Dict:
+                     category: str = "best-practice",
+                     validate: bool = True) -> Dict:
         """
         Generate a Semgrep rule from natural language description
         
@@ -42,6 +306,7 @@ class RuleGenerator:
             language: Programming language (python, javascript, java, go, etc.)
             severity: Rule severity (ERROR, WARNING, INFO)
             category: Rule category (security, best-practice, performance, etc.)
+            validate: Whether to validate the description first (default: True)
             
         Returns:
             Dictionary containing the generated Semgrep rule
@@ -99,6 +364,18 @@ class RuleGenerator:
         # Parse YAML to validate
         try:
             rule_dict = yaml.safe_load(rule_yaml)
+            
+            # Handle case where AI returns a list (e.g., [- id: ...])
+            if isinstance(rule_dict, list):
+                if len(rule_dict) > 0:
+                    rule_dict = rule_dict[0]
+                else:
+                    raise ValueError("Generated YAML is an empty list")
+            
+            # Ensure we have a dict
+            if not isinstance(rule_dict, dict):
+                raise ValueError(f"Generated YAML is not a valid rule (got {type(rule_dict).__name__})")
+            
             return rule_dict
         except yaml.YAMLError as e:
             raise ValueError(f"Generated invalid YAML: {e}\n\nGenerated content:\n{rule_yaml}")
@@ -116,12 +393,12 @@ FORMAT (follow this EXACTLY):
 {example}
 
 REQUIREMENTS:
-- ID: {language.lower()}-rule-X-descriptive-name
-- Use pattern-either for multiple patterns
+- ID: {language.lower()}-descriptive-name (e.g., {language.lower()}-hardcoded-password, {language.lower()}-sql-injection)
+- Use pattern-either for multiple patterns when needed
 - IMPORTANT: Quote all pattern values (e.g., pattern: "some code") to prevent YAML parsing errors with colons
-- Message: "Rule X: [explain WHY bad] [suggest WHAT to do]"
+- Message: Clear explanation of the issue and suggested fix
 - Severity: {severity}
-- Metadata: category={category}, rule="{language.upper()} Rule X"
+- Metadata: category={category} (add cwe if security-related, e.g., cwe: CWE-89 for SQL injection)
 
 Return ONLY the YAML rule (single rule, not a list).
 """
@@ -132,52 +409,48 @@ Return ONLY the YAML rule (single rule, not a list).
         """Get ONE best example rule for the specified language"""
         
         examples = {
-            "python": """- id: py-rule-18-sql-injection
+            "python": """- id: py-sql-injection
   pattern-either:
     - pattern: $CURSOR.execute("... " + $VAR + " ...")
     - pattern: $CURSOR.execute(f"... {$VAR} ...")
-  message: "Rule 18: SQL injection vulnerability. Use parameterized queries (cursor.execute(query, params))"
+  message: "SQL injection vulnerability detected. Use parameterized queries (cursor.execute(query, params)) instead of string concatenation"
   languages: [python]
   severity: ERROR
   metadata:
     category: security
     cwe: CWE-89
-    rule: "PY Rule 18"
 """,
-            "javascript": """- id: js-rule-1-strict-equality-check
+            "javascript": """- id: js-loose-equality
   pattern-either:
     - pattern: if ($X == $Y) { ... }
     - pattern: while ($X == $Y) { ... }
     - pattern: $VAR = $X == $Y
-  message: "Rule 1: Use strict equality (===) instead of == to prevent unexpected type coercion"
+  message: "Use strict equality (===) instead of == to prevent unexpected type coercion"
   languages: [javascript, typescript]
   severity: WARNING
   metadata:
     category: best-practice
-    rule: "JS Rule 1"
 """,
-            "java": """- id: java-rule-2-no-system-out
+            "java": """- id: java-no-system-out
   pattern-either:
     - pattern: System.out.println(...)
     - pattern: System.err.println(...)
-  message: "Rule 2: Avoid System.out.println in production. Use proper logging framework (log4j, slf4j)"
+  message: "Avoid System.out.println in production. Use proper logging framework (log4j, slf4j, logback)"
   languages: [java]
   severity: WARNING
   metadata:
     category: best-practice
-    rule: "Java Rule 2"
 """,
-            "go": """- id: go-rule-20-no-fmt-println
+            "go": """- id: go-no-fmt-println
   pattern-either:
     - pattern: fmt.Println(...)
     - pattern: fmt.Printf(...)
     - pattern: fmt.Print(...)
-  message: "Go Rule 20: Avoid fmt.Println in production. Use proper logging (log package or structured logger)"
+  message: "Avoid fmt.Println in production. Use proper logging (log package or structured logger like zap, logrus)"
   languages: [go]
   severity: WARNING
   metadata:
     category: best-practice
-    rule: "Go Rule 20"
 """
         }
         
@@ -230,6 +503,39 @@ Return ONLY the YAML rule (single rule, not a list).
             f.write(new_content)
         
         return rule_file
+    
+    def preview_rule(self,
+                    description: str,
+                    language: str,
+                    severity: str = "WARNING",
+                    category: str = "best-practice",
+                    rules_dir: str = "rules") -> Dict:
+        """
+        Generate a rule preview with validation and duplicate checking (without saving)
+        
+        Returns:
+            Dictionary with rule, validation results, and duplicate warnings
+        """
+        # Validate description first
+        validation = self.validate_description(description)
+        
+        # Generate the rule regardless (user can decide)
+        rule = self.generate_rule(description, language, severity, category, validate=False)
+        
+        # Check for duplicates with the new rule for pattern comparison
+        rule_id = rule.get('id', 'unknown')
+        duplicates = self.check_duplicates(rule_id, language, rules_dir, new_rule=rule)
+        
+        # Convert rule to YAML for preview
+        rule_yaml = yaml.dump([rule], default_flow_style=False, sort_keys=False, allow_unicode=True)
+        
+        return {
+            'rule': rule,
+            'yaml': rule_yaml,
+            'validation': validation,
+            'duplicates': duplicates,
+            'success': True
+        }
     
     def generate_and_save(self, 
                          description: str,
@@ -369,8 +675,67 @@ if __name__ == "__main__":
         print("   GET  /health - Health check")
         print("=" * 60)
         app.run(debug=True, port=5000, host='0.0.0.0')
+    
+    elif len(sys.argv) > 1 and sys.argv[1] == 'preview':
+        # Preview mode - generate without saving
+        # Output ONLY JSON (no headers) for backend parsing
+        generator = RuleGenerator()
+        
+        if len(sys.argv) < 4:
+            error_result = {
+                'success': False,
+                'error': 'Usage: python rule-generator.py preview <description> <language> [severity] [category]'
+            }
+            print(json.dumps(error_result, indent=2))
+            sys.exit(1)
+        
+        description = sys.argv[2]
+        language = sys.argv[3]
+        severity = sys.argv[4] if len(sys.argv) > 4 else "WARNING"
+        category = sys.argv[5] if len(sys.argv) > 5 else "security"
+        
+        try:
+            result = generator.preview_rule(description, language, severity, category)
+            # Output ONLY JSON for easy parsing
+            print(json.dumps(result, indent=2))
+        except Exception as e:
+            error_result = {
+                'success': False,
+                'error': str(e)
+            }
+            print(json.dumps(error_result, indent=2))
+            sys.exit(1)
+    
+    elif len(sys.argv) > 1 and sys.argv[1] == 'validate':
+        # Validate mode - only validate description
+        # Output ONLY JSON (no headers) for backend parsing
+        generator = RuleGenerator()
+        
+        if len(sys.argv) < 3:
+            error_result = {
+                'is_valid': False,
+                'quality_score': 0,
+                'reason': 'Usage: python rule-generator.py validate <description>'
+            }
+            print(json.dumps(error_result, indent=2))
+            sys.exit(1)
+        
+        description = sys.argv[2]
+        
+        try:
+            validation = generator.validate_description(description)
+            print(json.dumps(validation, indent=2))
+        except Exception as e:
+            error_result = {
+                'is_valid': False,
+                'quality_score': 0,
+                'reason': str(e)
+            }
+            print(json.dumps(error_result, indent=2))
+            sys.exit(1)
+    
     elif len(sys.argv) > 1:
-        # CLI usage with arguments
+        # CLI usage with arguments - generate and save
         print("AI-Powered Semgrep Rule Generator")
         print("=" * 50)
         
@@ -433,3 +798,4 @@ if __name__ == "__main__":
             print(yaml.dump([result['rule']], default_flow_style=False, sort_keys=False))
         except Exception as e:
             print(f"❌ Error generating rule: {e}")
+

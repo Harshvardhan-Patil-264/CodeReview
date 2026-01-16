@@ -7,8 +7,10 @@ rules:
   # SQL Injection
   - id: sql-injection-risk
     pattern-either:
-      - pattern: $DB.execute("... " + $VAR + " ...")
-      - pattern: $DB.query("... " + $VAR + " ...")
+      - pattern: $DB.execute("..." + $VAR)
+      - pattern: $DB.query("..." + $VAR)
+      - pattern: $DB.execute('...' + $VAR)
+      - pattern: $DB.query('...' + $VAR)
     message: "Potential SQL injection vulnerability. Use parameterized queries"
     languages: [javascript, typescript, python, java]
     severity: ERROR
@@ -26,14 +28,21 @@ rules:
       category: security
       cwe: CWE-95
 
-  # Hardcoded Secret Token
+  # Hardcoded Secret Token - Using metavariable-regex for flexible matching
   - id: hardcoded-token
-    pattern-either:
-      - pattern: $TOKEN = "sk_live_..."
-      - pattern: $TOKEN = "ghp_..."
-      - pattern: $SECRET = "-----BEGIN PRIVATE KEY-----"
-    message: "Hardcoded secret token detected. Use environment variables or secret management"
-    languages: [javascript, typescript, python, java, go]
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $VAR = "$TOKEN"
+          - pattern: |
+              const $VAR = "$TOKEN"
+          - pattern: |
+              let $VAR = "$TOKEN"
+      - metavariable-regex:
+          metavariable: $TOKEN
+          regex: '^(sk_live_|sk_test_|ghp_|gho_|xoxb-|xoxp-)[a-zA-Z0-9]{20,}$'
+    message: "Hardcoded secret token detected (Stripe/GitHub/Slack). Use environment variables or secret management"
+    languages: [javascript, typescript, python, java]
     severity: ERROR
     metadata:
       category: security

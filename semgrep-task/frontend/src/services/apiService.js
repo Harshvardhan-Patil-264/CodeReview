@@ -104,12 +104,51 @@ export const downloadReport = async (scanId, index = 0, filename = null) => {
  * Generate a new Semgrep rule using AI
  * @param {object} ruleData - Rule configuration
  */
-export const generateRule = async (ruleData) => {
+export const generateRule = async (data) => {
     try {
-        const response = await apiClient.post('/rules/generate', ruleData);
+        const response = await apiClient.post('/rules/generate', data);
         return response.data;
     } catch (error) {
         console.error('Generate rule error:', error);
+        throw error;
+    }
+};
+
+/**
+ * Preview a rule without saving (includes validation and duplicate check)
+ */
+export const previewRule = async (data) => {
+    try {
+        const response = await apiClient.post('/rules/preview', data);
+        return response.data;
+    } catch (error) {
+        console.error('Preview rule error:', error);
+        throw error;
+    }
+};
+
+/**
+ * Validate a rule description (garbage detection)
+ */
+export const validateRuleDescription = async (description) => {
+    try {
+        const response = await apiClient.post('/rules/validate', { description });
+        return response.data;
+    } catch (error) {
+        console.error('Validate rule description error:', error);
+        throw error;
+    }
+};
+
+/**
+ * Confirm and save a previewed rule to file
+ */
+export const confirmRule = async (rule, language) => {
+    try {
+        const response = await apiClient.post('/rules/confirm', { rule, language });
+        return response.data;
+    } catch (error) {
+        console.error('Confirm rule error:', error);
         throw error;
     }
 };

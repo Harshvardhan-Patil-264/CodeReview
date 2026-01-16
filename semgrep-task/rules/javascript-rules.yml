@@ -303,3 +303,34 @@ rules:
     metadata:
       category: naming-convention
       rule: "JS Rule 25"
+
+  # AI-Generated Rule
+  - id: javascript-rule-1-avoid-string-arguments
+    pattern-either:
+      - pattern: setTimeout($FUNC, $STR)
+      - pattern: setInterval($FUNC, $STR)
+    message: >-
+      Rule 1: Avoid using string arguments in setTimeout/setInterval as they can
+      lead to code injection, use function references instead
+    languages:
+      - javascript
+    severity: WARNING
+    metadata:
+      category: security
+      rule: JAVASCRIPT Rule 1
+
+  # AI-Generated Rule
+  - id: javascript-rule-1-object-mutability
+    pattern-either:
+      - pattern: Object.assign($OBJ, $MUTABLE_OBJ)
+      - pattern: $OBJ.$PROP = $MUTABLE_OBJ
+      - pattern: $OBJ = { ...$MUTABLE_OBJ }
+    message: >-
+      Rule 1: Avoid mutating objects by reassigning or using Object.assign,
+      instead create a new object to prevent unintended side effects
+    languages:
+      - javascript
+    severity: WARNING
+    metadata:
+      category: security
+      rule: JAVASCRIPT Rule 1

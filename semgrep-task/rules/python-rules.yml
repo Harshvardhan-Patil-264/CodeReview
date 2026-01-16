@@ -359,3 +359,18 @@ rules:
       category: security
       cwe: CWE-95
       rule: PYTHON Rule 1
+
+  # AI-Generated Rule
+  - id: python-hardcoded-api
+    pattern-either:
+      - pattern: requests.request(..., url="https://$URL")
+      - pattern: requests.$METHOD(..., url="$URL")
+    message: >-
+      Hardcoded API URL detected. Consider using environment variables or a
+      configuration file to store API URLs
+    languages:
+      - python
+    severity: WARNING
+    metadata:
+      category: performance
+      cwe: CWE-798

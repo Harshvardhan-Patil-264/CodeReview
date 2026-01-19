@@ -1,97 +1,112 @@
 const { v4: uuidv4 } = require('uuid');
+const Scan = require('../models/Scan');
 
 /**
- * In-memory scan manager
- * Tracks scan history and metadata
+ * Database-backed scan manager
+ * Stores scan metadata and status in MySQL database
  */
-class ScanManager {
-    constructor() {
-        this.scans = new Map();
-    }
 
-    /**
-     * Create a new scan entry
-     * @param {string} type - 'github' or 'upload'
-     * @param {string} input - GitHub URL or upload filename
-     * @returns {string} - Scan ID
-     */
-    createScan(type, input) {
-        const scanId = `scan_${Date.now()}_${uuidv4().split('-')[0]}`;
+/**
+ * Create a new scan entry
+ * @param {string} userId - User ID who owns this scan
+ * @param {string} type - 'github' or 'upload'
+ * @param {string} input - GitHub URL or uploaded file name
+ * @returns {Promise<Object>} Scan object
+ */
+async function createScan(userId, type, input) {
+    const scanId = `scan_${Date.now()}_${uuidv4().split('-')[0]}`;
 
-        const scan = {
-            id: scanId,
-            type: type,
-            input: input,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            reportPaths: [],  // Array of report file names
-            reportCount: 0,
-            error: null,
-            duration: null
-        };
+    const scan = await Scan.create({
+        id: scanId,
+        userId: userId,
+        type: type,
+        input: input,
+        status: 'pending',
+        reportPaths: [],
+        reportCount: 0,
+    });
 
-        this.scans.set(scanId, scan);
-        console.log(`Created scan: ${scanId}`);
-
-        return scanId;
-    }
-
-    /**
-     * Update scan status
-     */
-    updateScan(scanId, updates) {
-        const scan = this.scans.get(scanId);
-        if (!scan) {
-            throw new Error(`Scan not found: ${scanId}`);
-        }
-
-        Object.assign(scan, updates, {
-            updatedAt: new Date().toISOString()
-        });
-
-        this.scans.set(scanId, scan);
-        console.log(`Updated scan ${scanId}:`, updates);
-    }
-
-    /**
-     * Get scan by ID
-     */
-    getScan(scanId) {
-        return this.scans.get(scanId);
-    }
-
-    /**
-     * Get all scans (sorted by creation date, newest first)
-     */
-    getAllScans() {
-        const scans = Array.from(this.scans.values());
-        return scans.sort((a, b) =>
-            new Date(b.createdAt) - new Date(a.createdAt)
-        );
-    }
-
-    /**
-     * Mark scan as completed
-     */
-    completeScan(scanId, reportPaths, duration) {
-        this.updateScan(scanId, {
-            status: 'completed',
-            reportPaths: reportPaths,  // Array of reports
-            reportCount: reportPaths.length,
-            duration: duration
-        });
-    }
-
-    /**
-     * Mark scan as failed
-     */
-    failScan(scanId, error) {
-        this.updateScan(scanId, {
-            status: 'failed',
-            error: error
-        });
-    }
+    console.log(`[ScanManager] Created scan: ${scanId} for user: ${userId}`);
+    return scan;
 }
 
-module.exports = new ScanManager();
+/**
+ * Mark scan as completed
+ * @param {string} scanId - Scan ID
+ * @param {string[]} reportPaths - Array of report paths
+ * @param {number} duration - Scan duration in ms
+ * @returns {Promise<Object>} Updated scan object
+ */
+async function completeScan(scanId, reportPaths, duration) {
+    const scan = await Scan.findByPk(scanId);
+
+    if (!scan) {
+        console.error(`[ScanManager] Scan not found: ${scanId}`);
+        throw new Error(`Scan not found: ${scanId}`);
+    }
+
+    await scan.markCompleted(reportPaths, duration);
+    console.log(`[ScanManager] Scan completed: ${scanId} with ${scan.reportCount} report(s)`);
+
+    return scan;
+}
+
+/**
+ * Mark scan as failed
+ * @param {string} scanId - Scan ID
+ * @param {string} error - Error message
+ * @returns {Promise<Object>} Updated scan object
+ */
+async function failScan(scanId, error) {
+    const scan = await Scan.findByPk(scanId);
+
+    if (!scan) {
+        console.error(`[ScanManager] Scan not found: ${scanId}`);
+        throw new Error(`Scan not found: ${scanId}`);
+    }
+
+    await scan.markFailed(error);
+    console.log(`[ScanManager] Scan failed: ${scanId} - ${error}`);
+
+    return scan;
+}
+
+/**
+ * Get all scans for a specific user
+ * @param {string} userId - User ID
+ * @returns {Promise<Array>} Array of user's scans
+ */
+async function getAllScans(userId) {
+    const scans = await Scan.findAll({
+        where: { userId },
+        order: [['createdAt', 'DESC']],
+    });
+
+    return scans;
+}
+
+/**
+ * Get scan by ID
+ * @param {string} scanId - Scan ID
+ * @param {string} userId - User ID (optional, for ownership verification)
+ * @returns {Promise<Object|null>} Scan object or null if not found
+ */
+async function getScan(scanId, userId = null) {
+    const where = { id: scanId };
+
+    // If userId provided, verify ownership
+    if (userId) {
+        where.userId = userId;
+    }
+
+    const scan = await Scan.findOne({ where });
+    return scan;
+}
+
+module.exports = {
+    createScan,
+    completeScan,
+    failScan,
+    getAllScans,
+    getScan
+};

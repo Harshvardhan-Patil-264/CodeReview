@@ -334,3 +334,37 @@ rules:
     metadata:
       category: security
       rule: JAVASCRIPT Rule 1
+
+  # AI-Generated Rule
+  - id: javascript-avoid-eval
+    pattern-either:
+      - pattern: eval($X)
+      - pattern: $FUNC = eval
+      - pattern: $VAR = eval($X)
+    message: >-
+      Avoid using eval() as it can pose a security risk by allowing arbitrary code
+      execution. Consider using a safer alternative, such as JSON.parse() for
+      parsing JSON data.
+    languages:
+      - javascript
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-95
+
+  # AI-Generated Rule
+  - id: javascript-hardcoded-api-key
+    pattern-either:
+      - pattern: process.env.API_KEY = '$KEY'
+      - pattern: const API_KEY = '$KEY'
+      - pattern: let apiKey = '$KEY'
+      - pattern: var apiKey = '$KEY'
+    message: >-
+      Hardcoded API keys are a security risk. Consider using environment variables
+      or a secure secrets management system to store sensitive credentials
+    languages:
+      - javascript
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-798

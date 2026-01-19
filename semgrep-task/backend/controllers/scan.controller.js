@@ -64,17 +64,24 @@ exports.createScan = async (req, res, next) => {
             throw error;
         }
 
-        // Create scan entry
-        const scanId = scanManager.createScan(type || 'upload', scanInput);
+        // Get userId from authenticated user
+        const userId = req.user.id;
 
-        console.log(`[${req.requestId}] Starting scan ${scanId} for: ${scanInput}`);
+        // Create scan entry with userId
+        const scan = await scanManager.createScan(userId, type || 'upload', scanInput);
+        const scanId = scan.id;
+
+        console.log(`[${req.requestId}] Starting scan ${scanId} for user ${userId}: ${scanInput}`);
+
+        // Mark scan as running when execution starts
+        await scan.markRunning();
 
         // Execute Python scan
         try {
             const result = await pythonExecutor.executeScan(targetPath, req.requestId);
 
             // Mark scan as completed with ALL report paths
-            scanManager.completeScan(scanId, result.reportPaths, result.duration);
+            await scanManager.completeScan(scanId, result.reportPaths, result.duration);
 
             console.log(`[${req.requestId}] Scan completed: ${scanId} with ${result.reportCount} report(s)`);
 
@@ -89,7 +96,7 @@ exports.createScan = async (req, res, next) => {
 
         } catch (execError) {
             // Mark scan as failed
-            scanManager.failScan(scanId, execError.error || execError.message);
+            await scanManager.failScan(scanId, execError.error || execError.message);
 
             console.error(`[${req.requestId}] Scan failed: ${scanId}`, execError);
 
@@ -117,9 +124,13 @@ exports.createScan = async (req, res, next) => {
  * GET /api/scans
  * Get all scans
  */
-exports.getScans = (req, res, next) => {
+exports.getScans = async (req, res, next) => {
     try {
-        const scans = scanManager.getAllScans();
+        // Get userId from authenticated user
+        const userId = req.user.id;
+
+        // Get only this user's scans
+        const scans = await scanManager.getAllScans(userId);
 
         res.json({
             success: true,
@@ -135,13 +146,16 @@ exports.getScans = (req, res, next) => {
  * GET /api/scans/:id
  * Get specific scan by ID
  */
-exports.getScan = (req, res, next) => {
+exports.getScan = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const scan = scanManager.getScan(id);
+        const userId = req.user.id;
+
+        // Get scan and verify ownership
+        const scan = await scanManager.getScan(id, userId);
 
         if (!scan) {
-            const error = new Error(`Scan not found: ${id}`);
+            const error = new Error(`Scan not found or access denied: ${id}`);
             error.status = 404;
             error.code = 'SCAN_NOT_FOUND';
             throw error;
@@ -157,17 +171,20 @@ exports.getScan = (req, res, next) => {
 };
 
 /**
- * GET /api/reports/:id/:index?
+ * GET /api/scans/:id/report
  * Download report for a specific scan
- * If index is provided, download that specific report from the array
+ * Returns the first report from the reportPaths array
  */
-exports.getReport = (req, res, next) => {
+exports.getReport = async (req, res, next) => {
     try {
-        const { id, index } = req.params;
-        const scan = scanManager.getScan(id);
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        // Get scan and verify ownership
+        const scan = await scanManager.getScan(id, userId);
 
         if (!scan) {
-            const error = new Error(`Scan not found: ${id}`);
+            const error = new Error(`Scan not found or access denied: ${id}`);
             error.status = 404;
             error.code = 'SCAN_NOT_FOUND';
             throw error;
@@ -180,21 +197,8 @@ exports.getReport = (req, res, next) => {
             throw error;
         }
 
-        // Determine which report to serve
-        let reportPath;
-        if (index !== undefined) {
-            const reportIndex = parseInt(index);
-            if (isNaN(reportIndex) || reportIndex < 0 || reportIndex >= scan.reportPaths.length) {
-                const error = new Error(`Invalid report index: ${index}. Available: 0-${scan.reportPaths.length - 1}`);
-                error.status = 400;
-                error.code = 'INVALID_REPORT_INDEX';
-                throw error;
-            }
-            reportPath = scan.reportPaths[reportIndex];
-        } else {
-            // Default to first report if no index specified
-            reportPath = scan.reportPaths[0];
-        }
+        // Use the first report (main report)
+        const reportPath = scan.reportPaths[0];
 
         // Construct absolute path to report
         const absoluteReportPath = path.join(__dirname, '..', '..', reportPath);
@@ -226,3 +230,72 @@ exports.getReport = (req, res, next) => {
         next(error);
     }
 };
+
+/**
+ * GET /api/scans/:id/reports/:index
+ * Download a specific report by index from the reportPaths array
+ */
+exports.getReportByIndex = async (req, res, next) => {
+    try {
+        const { id, index } = req.params;
+        const userId = req.user.id;
+
+        // Get scan and verify ownership
+        const scan = await scanManager.getScan(id, userId);
+
+        if (!scan) {
+            const error = new Error(`Scan not found or access denied: ${id}`);
+            error.status = 404;
+            error.code = 'SCAN_NOT_FOUND';
+            throw error;
+        }
+
+        if (scan.status !== 'completed' || !scan.reportPaths || scan.reportPaths.length === 0) {
+            const error = new Error(`Report not available for scan ${id}`);
+            error.status = 400;
+            error.code = 'REPORT_NOT_AVAILABLE';
+            throw error;
+        }
+
+        const reportIndex = parseInt(index);
+        if (isNaN(reportIndex) || reportIndex < 0 || reportIndex >= scan.reportPaths.length) {
+            const error = new Error(`Invalid report index: ${index}. Available: 0-${scan.reportPaths.length - 1}`);
+            error.status = 400;
+            error.code = 'INVALID_REPORT_INDEX';
+            throw error;
+        }
+
+        const reportPath = scan.reportPaths[reportIndex];
+
+        // Construct absolute path to report
+        const absoluteReportPath = path.join(__dirname, '..', '..', reportPath);
+
+        // Check if report exists
+        if (!fileHandler.fileExists(absoluteReportPath)) {
+            const error = new Error(`Report file not found: ${reportPath}`);
+            error.status = 404;
+            error.code = 'REPORT_FILE_NOT_FOUND';
+            throw error;
+        }
+
+        console.log(`[${req.requestId}] Serving report ${reportIndex}: ${absoluteReportPath}`);
+
+        // Send file with proper headers
+        const filename = reportPath.split('/').pop() || `report-${reportIndex}.xlsx`;
+        res.download(absoluteReportPath, filename, (err) => {
+            if (err) {
+                console.error(`[${req.requestId}] Failed to send report:`, err);
+                if (!res.headersSent) {
+                    const error = new Error('Failed to download report');
+                    error.status = 500;
+                    error.code = 'DOWNLOAD_FAILED';
+                    next(error);
+                }
+            }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+

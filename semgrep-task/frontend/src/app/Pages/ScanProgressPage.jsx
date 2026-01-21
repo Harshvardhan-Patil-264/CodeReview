@@ -46,7 +46,10 @@ export default function ScanProgressPage() {
 
         try {
             const response = await scanAPI.getScanById(scanId);
+            console.log('[ScanProgressPage] Received response:', response);
             if (response.success) {
+                console.log('[ScanProgressPage] Scan data:', response.scan);
+                console.log('[ScanProgressPage] Report stats:', response.scan.reportStats);
                 setScan(response.scan);
             }
         } catch (err) {
@@ -217,7 +220,7 @@ export default function ScanProgressPage() {
                     )}
                 </div>
 
-                {/* Reports List */}
+                {/* Reports List with Accuracy Meters */}
                 {scan.status === "completed" && scan.reportPaths && scan.reportPaths.length > 0 && (
                     <div className="bg-white border rounded-2xl shadow-sm p-6">
                         <div className="flex items-center justify-between mb-4">
@@ -232,62 +235,136 @@ export default function ScanProgressPage() {
                                 const filename = reportPath.split('/').pop() || `Report ${index + 1}`;
                                 const language = filename.replace('_Review.xlsx', '').replace('.xlsx', '');
 
+                                // Get report stats from backend
+                                const stats = scan.reportStats?.[index] || {
+                                    totalFindings: 0,
+                                    accuracyScore: 100,
+                                    quality: 'Unknown',
+                                    color: 'gray',
+                                    severityBreakdown: { ERROR: 0, WARNING: 0, INFO: 0 }
+                                };
+
+                                // Color mapping for UI
+                                const colorMap = {
+                                    green: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300', ring: 'stroke-green-600' },
+                                    yellow: { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300', ring: 'stroke-yellow-600' },
+                                    orange: { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300', ring: 'stroke-orange-600' },
+                                    red: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', ring: 'stroke-red-600' },
+                                    gray: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300', ring: 'stroke-gray-600' }
+                                };
+
+                                const colors = colorMap[stats.color] || colorMap.gray;
+                                const circumference = 2 * Math.PI * 40;
+                                const strokeDashoffset = circumference - (stats.accuracyScore / 100) * circumference;
+
                                 return (
                                     <div
                                         key={index}
-                                        className="border rounded-xl p-4 flex items-center justify-between hover:bg-gray-50 transition"
+                                        className={`border ${colors.border} rounded-xl p-4 hover:bg-gray-50 transition`}
                                     >
-                                        <div className="flex items-center gap-4 flex-1">
-                                            <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
-                                                <FileSpreadsheet className="size-6 text-green-700" />
+                                        <div className="flex items-center justify-between gap-4">
+                                            {/* File Info */}
+                                            <div className="flex items-center gap-4 flex-1">
+                                                <div className={`w-12 h-12 rounded-lg ${colors.bg} flex items-center justify-center`}>
+                                                    <FileSpreadsheet className={`size-6 ${colors.text}`} />
+                                                </div>
+
+                                                <div className="flex-1">
+                                                    <p className="font-semibold text-gray-900">{language}</p>
+                                                    <p className="text-sm text-gray-500">{filename}</p>
+
+                                                    {/* Severity Breakdown */}
+                                                    <div className="flex gap-3 mt-1 text-xs">
+                                                        {stats.severityBreakdown.ERROR > 0 && (
+                                                            <span className="text-red-600 font-medium">
+                                                                ⚠ {stats.severityBreakdown.ERROR} Errors
+                                                            </span>
+                                                        )}
+                                                        {stats.severityBreakdown.WARNING > 0 && (
+                                                            <span className="text-yellow-600 font-medium">
+                                                                ⚡ {stats.severityBreakdown.WARNING} Warnings
+                                                            </span>
+                                                        )}
+                                                        {stats.severityBreakdown.INFO > 0 && (
+                                                            <span className="text-blue-600 font-medium">
+                                                                ℹ {stats.severityBreakdown.INFO} Info
+                                                            </span>
+                                                        )}
+                                                        {stats.totalFindings === 0 && (
+                                                            <span className="text-green-600 font-medium">
+                                                                ✓ No issues found
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <div>
-                                                <p className="font-semibold text-gray-900">{language}</p>
-                                                <p className="text-sm text-gray-500">{filename}</p>
+                                            {/* Accuracy Meter */}
+                                            <div className="flex items-center gap-4">
+                                                {/* Circular Progress */}
+                                                <div className="relative w-24 h-24">
+                                                    <svg className="w-24 h-24 transform -rotate-90">
+                                                        {/* Background circle */}
+                                                        <circle
+                                                            cx="48"
+                                                            cy="48"
+                                                            r="40"
+                                                            stroke="currentColor"
+                                                            strokeWidth="6"
+                                                            fill="none"
+                                                            className="text-gray-200"
+                                                        />
+                                                        {/* Progress circle */}
+                                                        <circle
+                                                            cx="48"
+                                                            cy="48"
+                                                            r="40"
+                                                            stroke="currentColor"
+                                                            strokeWidth="6"
+                                                            fill="none"
+                                                            className={colors.ring}
+                                                            strokeDasharray={circumference}
+                                                            strokeDashoffset={strokeDashoffset}
+                                                            strokeLinecap="round"
+                                                        />
+                                                    </svg>
+                                                    {/* Score text */}
+                                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                        <span className="text-xl font-bold text-gray-900">
+                                                            {stats.accuracyScore}%
+                                                        </span>
+                                                        <span className={`text-xs font-medium ${colors.text}`}>
+                                                            {stats.quality}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Download Button */}
+                                                <button
+                                                    onClick={() => handleDownloadReport(reportPath, index)}
+                                                    disabled={downloadingIndex === index}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {downloadingIndex === index ? (
+                                                        <>
+                                                            <Loader2 className="size-4 animate-spin" />
+                                                            Downloading...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Download className="size-4" />
+                                                            Download
+                                                        </>
+                                                    )}
+                                                </button>
                                             </div>
                                         </div>
-
-                                        <button
-                                            onClick={() => handleDownloadReport(reportPath, index)}
-                                            disabled={downloadingIndex === index}
-                                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            {downloadingIndex === index ? (
-                                                <>
-                                                    <Loader2 className="size-4 animate-spin" />
-                                                    Downloading...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Download className="size-4" />
-                                                    Download
-                                                </>
-                                            )}
-                                        </button>
                                     </div>
                                 );
                             })}
                         </div>
                     </div>
                 )}
-
-                {/* Action Buttons */}
-                <div className="mt-6 flex gap-4">
-                    <button
-                        onClick={() => navigate("/scan-history")}
-                        className="flex-1 py-3 border rounded-xl bg-white hover:bg-gray-50 transition font-medium text-gray-900"
-                    >
-                        View Scan History
-                    </button>
-
-                    <button
-                        onClick={() => navigate("/upload")}
-                        className="flex-1 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
-                    >
-                        New Scan
-                    </button>
-                </div>
 
                 {/* Footer */}
                 <div className="mt-6 text-center text-sm text-gray-500">

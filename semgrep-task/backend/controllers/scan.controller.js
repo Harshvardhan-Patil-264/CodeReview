@@ -3,6 +3,7 @@ const fs = require('fs');
 const pythonExecutor = require('../services/pythonExecutor');
 const scanManager = require('../services/scanManager');
 const fileHandler = require('../utils/fileHandler');
+const reportParser = require('../utils/reportParser');
 const { validateGitHubUrl, validateFileUpload } = require('../middleware/validation');
 
 /**
@@ -45,12 +46,16 @@ exports.createScan = async (req, res, next) => {
             scanInput = file.originalname;
 
             // Extract ZIP file
+            console.log(`[${req.requestId}] Extracting uploaded file: ${file.originalname}...`);
+            console.log(`[${req.requestId}] Initializing security engine... Please wait.`);
+
             const extractDir = path.join(__dirname, '..', 'uploads', `extract_${Date.now()}`);
             fs.mkdirSync(extractDir, { recursive: true });
 
             try {
                 extractedDir = fileHandler.extractZip(file.path, extractDir);
                 targetPath = extractedDir;
+                console.log(`[${req.requestId}] File extracted successfully. Starting scan...`);
             } catch (error) {
                 fileHandler.cleanup(file.path);
                 fileHandler.cleanup(extractDir);
@@ -144,7 +149,7 @@ exports.getScans = async (req, res, next) => {
 
 /**
  * GET /api/scans/:id
- * Get specific scan by ID
+ * Get specific scan by ID with report statistics
  */
 exports.getScan = async (req, res, next) => {
     try {
@@ -161,9 +166,31 @@ exports.getScan = async (req, res, next) => {
             throw error;
         }
 
+        // Calculate report statistics if scan is completed
+        let reportStats = null;
+        if (scan.status === 'completed' && scan.reportPaths && scan.reportPaths.length > 0) {
+            reportStats = reportParser.getReportStats(scan.reportPaths);
+            console.log('[getScan] Calculated reportStats for scan:', id, reportStats);
+        }
+
+        // Explicitly construct response object to ensure proper serialization
+        const scanResponse = {
+            id: scan.id,
+            userId: scan.userId,
+            type: scan.type,
+            input: scan.input,
+            status: scan.status,
+            reportPaths: scan.reportPaths,
+            reportStats: reportStats,  // Add file-specific statistics
+            duration: scan.duration,
+            error: scan.error,
+            createdAt: scan.createdAt,
+            updatedAt: scan.updatedAt
+        };
+
         res.json({
             success: true,
-            scan: scan
+            scan: scanResponse
         });
     } catch (error) {
         next(error);

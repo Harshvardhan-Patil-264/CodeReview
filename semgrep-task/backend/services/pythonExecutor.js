@@ -2,8 +2,8 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-// Timeout for Python execution (5 minutes)
-const EXECUTION_TIMEOUT = 5 * 60 * 1000;
+// Timeout for Python execution (15 minutes for large codebases)
+const EXECUTION_TIMEOUT = 15 * 60 * 1000;
 
 /**
  * Execute Python script with security measures
@@ -83,7 +83,7 @@ class PythonExecutor {
                 if (timedOut) {
                     return reject({
                         success: false,
-                        error: 'Scan execution timed out (exceeded 5 minutes)',
+                        error: 'Scan execution timed out (exceeded 15 minutes)',
                         code: 'TIMEOUT',
                         status: 408
                     });

@@ -15,6 +15,11 @@ rules:
     metadata:
       category: best-practice
       rule: "JS Rule 1"
+      references:
+        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Equality_comparisons_and_sameness
+      likelihood: MEDIUM
+      impact: MEDIUM
+      confidence: HIGH
 
   - id: js-rule-1-strict-inequality-check
     pattern-either:
@@ -27,26 +32,72 @@ rules:
     metadata:
       category: best-practice
       rule: "JS Rule 1"
+      references:
+        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Equality_comparisons_and_sameness
+      likelihood: MEDIUM
+      impact: MEDIUM
+      confidence: HIGH
 
   # Rule 2: Use const or let (Never var)
   - id: js-rule-2-no-var
-    pattern: var $VAR = $VALUE
+    patterns:
+      - pattern-either:
+          - pattern: var $VAR = ...
+          - pattern: var $VAR
+      - pattern-not: const $VAR = ...
+      - pattern-not: let $VAR = ...
+      - pattern-not: const $VAR
+      - pattern-not: let $VAR
     message: "Rule 2: Never use 'var'. Use 'const' or 'let' to avoid scope and hoisting issues"
     languages: [javascript, typescript]
     severity: ERROR
     metadata:
       category: best-practice
       rule: "JS Rule 2"
+      references:
+        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/var
+        - https://eslint.org/docs/latest/rules/no-var
+      likelihood: HIGH
+      impact: MEDIUM
+      confidence: HIGH
 
-  # Rule 3: Prefer const Over let
+  # Rule 3: Prefer const Over let (IMPROVED - Reduces false positives)
+  # Note: This rule is intentionally conservative to avoid false positives
+  # It only flags 'let' when there's no obvious reassignment
   - id: js-rule-3-prefer-const
-    pattern: let $VAR = $VALUE
-    message: "Rule 3: Prefer 'const' over 'let' to prevent accidental reassignment (use let only if reassignment is needed)"
+    patterns:
+      - pattern: let $VAR = $VALUE
+      - pattern-not-inside: |
+          let $VAR = ...
+          ...
+          $VAR = ...
+      - pattern-not-inside: |
+          let $VAR = ...
+          ...
+          $VAR++
+      - pattern-not-inside: |
+          let $VAR = ...
+          ...
+          $VAR--
+      - pattern-not-inside: |
+          let $VAR = ...
+          ...
+          ++$VAR
+      - pattern-not-inside: |
+          let $VAR = ...
+          ...
+          --$VAR
+    message: "Rule 3: Prefer 'const' over 'let' when variable is never reassigned"
     languages: [javascript, typescript]
     severity: INFO
     metadata:
       category: best-practice
       rule: "JS Rule 3"
+      references:
+        - https://eslint.org/docs/latest/rules/prefer-const
+      likelihood: LOW
+      impact: LOW
+      confidence: MEDIUM
 
   # Rule 5: Always Handle Errors
   - id: js-rule-5-empty-catch
@@ -61,16 +112,34 @@ rules:
     metadata:
       category: error-handling
       rule: "JS Rule 5"
+      cwe: "CWE-391: Unchecked Error Condition"
+      references:
+        - https://cwe.mitre.org/data/definitions/391.html
+      likelihood: HIGH
+      impact: MEDIUM
+      confidence: HIGH
 
   # Rule 6: Handle Promises Properly
   - id: js-rule-6-promise-without-catch
-    pattern: $PROMISE.then($HANDLER);
+    patterns:
+      - pattern: $PROMISE.then($HANDLER);
+      - pattern-not: $PROMISE.then($HANDLER).catch(...);
+      - pattern-not: $PROMISE.then($HANDLER, $ERROR_HANDLER);
+      - pattern-not-inside: |
+          try {
+            ...
+          } catch ($E) { ... }
     message: "Rule 6: Handle promises properly. Always add .catch() to handle rejections"
     languages: [javascript, typescript]
     severity: WARNING
     metadata:
       category: async-patterns
       rule: "JS Rule 6"
+      references:
+        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises
+      likelihood: MEDIUM
+      impact: MEDIUM
+      confidence: MEDIUM
 
   # Rule 7: Prefer async/await
   - id: js-rule-7-prefer-async-await
@@ -82,33 +151,68 @@ rules:
     metadata:
       category: async-patterns
       rule: "JS Rule 7"
+      references:
+        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
+      likelihood: LOW
+      impact: LOW
+      confidence: LOW
 
-  # Rule 8: Avoid console.log in Production
+  # Rule 8: Avoid console.log in Production (IMPROVED - More specific)
   - id: js-rule-8-no-console-production
     pattern-either:
       - pattern: console.log(...)
       - pattern: console.debug(...)
       - pattern: console.info(...)
-      - pattern: console.warn(...)
     message: "Rule 8: Avoid console statements in production. Use a proper logging library (e.g., winston, pino)"
     languages: [javascript, typescript]
     severity: WARNING
     metadata:
       category: best-practice
       rule: "JS Rule 8"
+      references:
+        - https://eslint.org/docs/latest/rules/no-console
+      likelihood: MEDIUM
+      impact: LOW
+      confidence: HIGH
 
-  # Rule 10: Validate Inputs
-  - id: js-rule-10-missing-validation
-    pattern: |
-      function $FUNC($PARAM) {
-        $DB.save($PARAM);
-      }
-    message: "Rule 10: Validate inputs before using them. Check for null/undefined and validate data types"
+  # Rule 10: Validate Inputs (IMPROVED - More specific patterns)
+  - id: js-rule-10-missing-validation-db
+    patterns:
+      - pattern-either:
+          - pattern: |
+              function $FUNC($PARAM) {
+                $DB.save($PARAM);
+              }
+          - pattern: |
+              function $FUNC($PARAM) {
+                $DB.insert($PARAM);
+              }
+          - pattern: |
+              function $FUNC($PARAM) {
+                $DB.create($PARAM);
+              }
+      - pattern-not-inside: |
+          function $FUNC($PARAM) {
+            if (!$PARAM) { ... }
+            ...
+          }
+      - pattern-not-inside: |
+          function $FUNC($PARAM) {
+            if ($PARAM == null) { ... }
+            ...
+          }
+    message: "Rule 10: Validate inputs before database operations. Check for null/undefined and validate data types"
     languages: [javascript, typescript]
     severity: WARNING
     metadata:
       category: security
       rule: "JS Rule 10"
+      cwe: "CWE-20: Improper Input Validation"
+      references:
+        - https://cwe.mitre.org/data/definitions/20.html
+      likelihood: MEDIUM
+      impact: HIGH
+      confidence: MEDIUM
 
   # Rule 11: Do Not Modify Function Parameters
   - id: js-rule-11-no-param-mutation
@@ -129,40 +233,83 @@ rules:
     metadata:
       category: best-practice
       rule: "JS Rule 11"
+      references:
+        - https://eslint.org/docs/latest/rules/no-param-reassign
+      likelihood: MEDIUM
+      impact: MEDIUM
+      confidence: MEDIUM
 
-  # Rule 12: Avoid eval()
+  # Rule 12: Avoid eval() (ENHANCED with more patterns)
   - id: js-rule-12-no-eval
-    pattern: eval($X)
-    message: "Rule 12: Never use eval(). It executes arbitrary code and is a major security risk"
+    pattern-either:
+      - pattern: eval($X)
+      - pattern: window.eval($X)
+      - pattern: global.eval($X)
+      - pattern: new Function($X)
+      - pattern: setTimeout($STR, ...)
+      - pattern: setInterval($STR, ...)
+    message: "Rule 12: Never use eval() or Function constructor. They execute arbitrary code and are major security risks"
     languages: [javascript, typescript]
     severity: ERROR
     metadata:
       category: security
-      cwe: CWE-95
+      cwe: "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')"
+      owasp:
+        - A03:2021 - Injection
+        - A05:2025 - Injection
       rule: "JS Rule 12"
+      references:
+        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
+        - https://owasp.org/Top10/A03_2021-Injection
+      likelihood: HIGH
+      impact: HIGH
+      confidence: HIGH
 
-  # Rule 13: Avoid innerHTML with User Data
+  # Rule 13: Avoid innerHTML with User Data (IMPROVED)
   - id: js-rule-13-no-innerhtml
-    pattern-either:
-      - pattern: $EL.innerHTML = $VAR
-      - pattern: $EL.outerHTML = $VAR
+    patterns:
+      - pattern-either:
+          - pattern: $EL.innerHTML = $VAR
+          - pattern: $EL.outerHTML = $VAR
+      - pattern-not: $EL.innerHTML = "..."
+      - pattern-not: $EL.outerHTML = "..."
+      - pattern-not: $EL.innerHTML = DOMPurify.sanitize(...)
+      - pattern-not: $EL.outerHTML = DOMPurify.sanitize(...)
     message: "Rule 13: Avoid innerHTML with user data. Use textContent or sanitize input to prevent XSS attacks"
     languages: [javascript, typescript]
     severity: ERROR
     metadata:
       category: security
-      cwe: CWE-79
+      cwe: "CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"
+      owasp:
+        - A03:2021 - Injection
+        - A05:2025 - Injection
       rule: "JS Rule 13"
+      references:
+        - https://owasp.org/www-community/attacks/xss/
+        - https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html
+      likelihood: HIGH
+      impact: HIGH
+      confidence: HIGH
+      cwe2022-top25: true
+      cwe2021-top25: true
 
   # Rule 14: Always Specify Radix in parseInt
   - id: js-rule-14-parseint-radix
-    pattern: parseInt($X)
+    patterns:
+      - pattern: parseInt($X)
+      - pattern-not: parseInt($X, ...)
     message: "Rule 14: Always specify radix in parseInt(). Use parseInt(value, 10) for decimal numbers"
     languages: [javascript, typescript]
     severity: WARNING
     metadata:
       category: best-practice
       rule: "JS Rule 14"
+      references:
+        - https://eslint.org/docs/latest/rules/radix
+      likelihood: MEDIUM
+      impact: LOW
+      confidence: HIGH
 
   # Rule 15: Avoid async inside forEach
   - id: js-rule-15-no-async-foreach
@@ -176,6 +323,11 @@ rules:
     metadata:
       category: async-patterns
       rule: "JS Rule 15"
+      references:
+        - https://eslint.org/docs/latest/rules/no-async-foreach
+      likelihood: HIGH
+      impact: MEDIUM
+      confidence: HIGH
 
   # Rule 18: Use Default Parameters
   - id: js-rule-18-default-params
@@ -192,6 +344,11 @@ rules:
     metadata:
       category: best-practice
       rule: "JS Rule 18"
+      references:
+        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters
+      likelihood: LOW
+      impact: LOW
+      confidence: MEDIUM
 
   # Rule 19: Reduce Nested Code
   - id: js-rule-19-reduce-nesting
@@ -209,6 +366,11 @@ rules:
     metadata:
       category: code-quality
       rule: "JS Rule 19"
+      references:
+        - https://refactoring.guru/replace-nested-conditional-with-guard-clauses
+      likelihood: LOW
+      impact: LOW
+      confidence: LOW
 
   # Rule 20: One Function Should Do One Thing
   - id: js-rule-20-single-responsibility
@@ -233,138 +395,330 @@ rules:
     metadata:
       category: code-quality
       rule: "JS Rule 20"
+      references:
+        - https://en.wikipedia.org/wiki/Single-responsibility_principle
+      likelihood: MEDIUM
+      impact: MEDIUM
+      confidence: LOW
 
   # ==========================================
-  # NAMING CONVENTION RULES
+  # NAMING CONVENTION RULES (IMPROVED)
   # ==========================================
 
-  # Rule 21: Class Names Should Use PascalCase
+  # Rule 21: Class Names Should Use PascalCase (IMPROVED)
   - id: js-rule-21-class-naming-pascalcase
-    pattern: |
-      class $CLASS {
-        ...
-      }
+    patterns:
+      - pattern: |
+          class $CLASS {
+            ...
+          }
+      - metavariable-regex:
+          metavariable: $CLASS
+          regex: ^[a-z_].*$
     message: "Rule 21: Class names should use PascalCase (e.g., UserProfile, not userProfile or user_profile)"
     languages: [javascript, typescript]
     severity: WARNING
     metadata:
       category: naming-convention
       rule: "JS Rule 21"
+      references:
+        - https://google.github.io/styleguide/jsguide.html#naming
+      likelihood: MEDIUM
+      impact: LOW
+      confidence: HIGH
 
-  # Rule 22: Function Names Should Use camelCase
+  # Rule 22: Function Names Should Use camelCase (IMPROVED)
   - id: js-rule-22-function-naming-camelcase
-    pattern-either:
-      - pattern: |
-          function $FUNC(...) {
-            ...
-          }
-      - pattern: |
-          const $FUNC = function(...) {
-            ...
-          }
+    patterns:
+      - pattern-either:
+          - pattern: |
+              function $FUNC(...) {
+                ...
+              }
+          - pattern: |
+              const $FUNC = function(...) {
+                ...
+              }
+      - metavariable-regex:
+          metavariable: $FUNC
+          regex: ^[A-Z_].*$
     message: "Rule 22: Function names should use camelCase (e.g., calculateTotal, not CalculateTotal or calculate_total)"
     languages: [javascript, typescript]
     severity: WARNING
     metadata:
       category: naming-convention
       rule: "JS Rule 22"
+      references:
+        - https://google.github.io/styleguide/jsguide.html#naming
+      likelihood: MEDIUM
+      impact: LOW
+      confidence: HIGH
 
-  # Rule 23: Variable Names Should Use camelCase
-  - id: js-rule-23-variable-naming-camelcase
-    pattern-either:
-      - pattern: const $VAR = $VALUE
-      - pattern: let $VAR = $VALUE
-      - pattern: var $VAR = $VALUE
-    message: "Rule 23: Variable names should use camelCase (e.g., userName, not user_name or UserName)"
-    languages: [javascript, typescript]
-    severity: INFO
-    metadata:
-      category: naming-convention
-      rule: "JS Rule 23"
-
-  # Rule 24: Constants Should Use UPPER_CASE
-  - id: js-rule-24-constant-naming-uppercase
-    pattern: const $CONST = $VALUE
-    message: "Rule 24: Constants should use UPPER_CASE with underscores (e.g., MAX_RETRIES, API_KEY, not maxRetries or apiKey for true constants)"
-    languages: [javascript, typescript]
-    severity: INFO
-    metadata:
-      category: naming-convention
-      rule: "JS Rule 24"
-
-  # Rule 25: Avoid Single Letter Variable Names (Except Loop Counters)
+  # Rule 25: Avoid Single Letter Variable Names (IMPROVED)
   - id: js-rule-25-no-single-letter-vars
-    pattern-either:
-      - pattern: const $X = $VALUE
-      - pattern: let $X = $VALUE
+    patterns:
+      - pattern-either:
+          - pattern: const $X = $VALUE
+          - pattern: let $X = $VALUE
+      - metavariable-regex:
+          metavariable: $X
+          regex: ^[a-z]$
+      - pattern-not-inside: |
+          $ARR.forEach(($X) => { ... })
+      - pattern-not-inside: |
+          $ARR.map(($X) => { ... })
+      - pattern-not-inside: |
+          $ARR.filter(($X) => { ... })
     message: "Rule 25: Avoid single-letter variable names except for loop counters (i, j, k). Use descriptive names"
     languages: [javascript, typescript]
     severity: INFO
     metadata:
       category: naming-convention
       rule: "JS Rule 25"
+      references:
+        - https://google.github.io/styleguide/jsguide.html#naming-rules-by-identifier-type
+      likelihood: LOW
+      impact: LOW
+      confidence: MEDIUM
 
-  # AI-Generated Rule
-  - id: javascript-rule-1-avoid-string-arguments
-    pattern-either:
-      - pattern: setTimeout($FUNC, $STR)
-      - pattern: setInterval($FUNC, $STR)
-    message: >-
-      Rule 1: Avoid using string arguments in setTimeout/setInterval as they can
-      lead to code injection, use function references instead
-    languages:
-      - javascript
-    severity: WARNING
+  # ==========================================
+  # ADVANCED SECURITY RULES (NEW)
+  # ==========================================
+
+  # NEW: SQL Injection Detection
+  - id: js-security-sql-injection
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: function($REQ, $RES) { ... }
+              - pattern-inside: function($REQ, $RES, $NEXT) { ... }
+              - pattern-inside: ($REQ, $RES) => { ... }
+              - pattern-inside: ($REQ, $RES, $NEXT) => { ... }
+          - pattern-either:
+              - pattern: $REQ.body
+              - pattern: $REQ.query
+              - pattern: $REQ.params
+              - pattern: $REQ.cookies
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $DB.query($QUERY + ...)
+              - pattern: $DB.query(`... ${$VAR} ...`)
+              - pattern: $DB.execute($QUERY + ...)
+              - pattern: $DB.execute(`... ${$VAR} ...`)
+              - pattern: $CONN.query($QUERY + ...)
+              - pattern: $CONN.query(`... ${$VAR} ...`)
+          - pattern-not: $DB.query("...", [...])
+          - pattern-not: $DB.execute("...", [...])
+    message: "SQL injection vulnerability detected. Use parameterized queries or prepared statements"
+    languages: [javascript, typescript]
+    severity: ERROR
     metadata:
       category: security
-      rule: JAVASCRIPT Rule 1
+      cwe: "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+      owasp:
+        - A03:2021 - Injection
+        - A05:2025 - Injection
+      references:
+        - https://owasp.org/www-community/attacks/SQL_Injection
+        - https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html
+      likelihood: HIGH
+      impact: HIGH
+      confidence: HIGH
+      cwe2022-top25: true
+      cwe2021-top25: true
 
-  # AI-Generated Rule
-  - id: javascript-rule-1-object-mutability
-    pattern-either:
-      - pattern: Object.assign($OBJ, $MUTABLE_OBJ)
-      - pattern: $OBJ.$PROP = $MUTABLE_OBJ
-      - pattern: $OBJ = { ...$MUTABLE_OBJ }
-    message: >-
-      Rule 1: Avoid mutating objects by reassigning or using Object.assign,
-      instead create a new object to prevent unintended side effects
-    languages:
-      - javascript
-    severity: WARNING
+  # NEW: Command Injection Detection
+  - id: js-security-command-injection
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: function($REQ, $RES) { ... }
+              - pattern-inside: ($REQ, $RES) => { ... }
+          - pattern-either:
+              - pattern: $REQ.body
+              - pattern: $REQ.query
+              - pattern: $REQ.params
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: child_process.exec(<... $CMD ...>)
+              - pattern: child_process.execSync(<... $CMD ...>)
+              - pattern: child_process.spawn($CMD, ...)
+              - pattern: child_process.spawnSync($CMD, ...)
+          - focus-metavariable: $CMD
+    message: "Command injection vulnerability detected. Sanitize user input or use execFile with array arguments"
+    languages: [javascript, typescript]
+    severity: ERROR
     metadata:
       category: security
-      rule: JAVASCRIPT Rule 1
+      cwe: "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      owasp:
+        - A03:2021 - Injection
+        - A05:2025 - Injection
+      references:
+        - https://owasp.org/www-community/attacks/Command_Injection
+        - https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html
+      likelihood: HIGH
+      impact: HIGH
+      confidence: HIGH
+      cwe2022-top25: true
 
-  # AI-Generated Rule
-  - id: javascript-avoid-eval
-    pattern-either:
-      - pattern: eval($X)
-      - pattern: $FUNC = eval
-      - pattern: $VAR = eval($X)
-    message: >-
-      Avoid using eval() as it can pose a security risk by allowing arbitrary code
-      execution. Consider using a safer alternative, such as JSON.parse() for
-      parsing JSON data.
-    languages:
-      - javascript
-    severity: WARNING
+  # NEW: Path Traversal Detection
+  - id: js-security-path-traversal
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: function($REQ, $RES) { ... }
+              - pattern-inside: ($REQ, $RES) => { ... }
+          - pattern-either:
+              - pattern: $REQ.body
+              - pattern: $REQ.query
+              - pattern: $REQ.params
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: fs.readFile(<... $PATH ...>, ...)
+              - pattern: fs.readFileSync(<... $PATH ...>, ...)
+              - pattern: fs.writeFile(<... $PATH ...>, ...)
+              - pattern: fs.writeFileSync(<... $PATH ...>, ...)
+              - pattern: path.join(<... $PATH ...>)
+              - pattern: path.resolve(<... $PATH ...>)
+          - focus-metavariable: $PATH
+    message: "Path traversal vulnerability detected. Validate and sanitize file paths from user input"
+    languages: [javascript, typescript]
+    severity: ERROR
     metadata:
       category: security
-      cwe: CWE-95
+      cwe: "CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+      owasp:
+        - A01:2021 - Broken Access Control
+        - A01:2025 - Broken Access Control
+      references:
+        - https://owasp.org/www-community/attacks/Path_Traversal
+        - https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html
+      likelihood: HIGH
+      impact: HIGH
+      confidence: HIGH
 
-  # AI-Generated Rule
-  - id: javascript-hardcoded-api-key
+  # NEW: Hardcoded Secrets Detection (IMPROVED)
+  - id: js-security-hardcoded-secrets
     pattern-either:
-      - pattern: process.env.API_KEY = '$KEY'
-      - pattern: const API_KEY = '$KEY'
-      - pattern: let apiKey = '$KEY'
-      - pattern: var apiKey = '$KEY'
-    message: >-
-      Hardcoded API keys are a security risk. Consider using environment variables
-      or a secure secrets management system to store sensitive credentials
-    languages:
-      - javascript
-    severity: WARNING
+      - patterns:
+          - pattern: const $VAR = "$VALUE"
+          - metavariable-regex:
+              metavariable: $VAR
+              regex: (?i)(password|passwd|pwd|secret|token|api_key|apikey|access_key|private_key|secret_key)
+          - metavariable-regex:
+              metavariable: $VALUE
+              regex: ^.{8,}$
+      - patterns:
+          - pattern: let $VAR = "$VALUE"
+          - metavariable-regex:
+              metavariable: $VAR
+              regex: (?i)(password|passwd|pwd|secret|token|api_key|apikey|access_key|private_key|secret_key)
+          - metavariable-regex:
+              metavariable: $VALUE
+              regex: ^.{8,}$
+    message: "Hardcoded secret detected. Use environment variables or a secure secrets management system"
+    languages: [javascript, typescript]
+    severity: ERROR
     metadata:
       category: security
-      cwe: CWE-798
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+      owasp:
+        - A07:2021 - Identification and Authentication Failures
+        - A07:2025 - Identification and Authentication Failures
+      references:
+        - https://cwe.mitre.org/data/definitions/798.html
+        - https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html
+      likelihood: HIGH
+      impact: HIGH
+      confidence: MEDIUM
+
+  # NEW: Insecure CORS Configuration
+  - id: js-security-insecure-cors
+    pattern-either:
+      - pattern: res.setHeader('Access-Control-Allow-Origin', '*')
+      - pattern: res.header('Access-Control-Allow-Origin', '*')
+      - patterns:
+          - pattern-either:
+              - pattern: res.setHeader('Access-Control-Allow-Origin', $REQ.headers.origin)
+              - pattern: res.header('Access-Control-Allow-Origin', $REQ.headers.origin)
+          - pattern-not-inside: |
+              if ($WHITELIST.includes($REQ.headers.origin)) {
+                ...
+              }
+    message: "Insecure CORS configuration detected. Use specific origins or implement proper origin validation"
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-346: Origin Validation Error"
+      owasp:
+        - A05:2021 - Security Misconfiguration
+        - A05:2025 - Security Misconfiguration
+      references:
+        - https://owasp.org/www-community/attacks/CORS_OriginHeaderScrutiny
+        - https://cheatsheetseries.owasp.org/cheatsheets/Cross-Origin_Resource_Sharing_Cheat_Sheet.html
+      likelihood: HIGH
+      impact: MEDIUM
+      confidence: HIGH
+
+  # NEW: Weak Cryptography Detection
+  - id: js-security-weak-crypto
+    pattern-either:
+      - pattern: crypto.createHash('md5')
+      - pattern: crypto.createHash('sha1')
+      - pattern: crypto.pseudoRandomBytes(...)
+    message: "Weak cryptographic algorithm detected. Use SHA-256 or stronger, and crypto.randomBytes() for random values"
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+      owasp:
+        - A02:2021 - Cryptographic Failures
+        - A02:2025 - Cryptographic Failures
+      references:
+        - https://cwe.mitre.org/data/definitions/327.html
+        - https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html
+      likelihood: MEDIUM
+      impact: HIGH
+      confidence: HIGH
+
+  # NEW: Prototype Pollution Detection
+  - id: js-security-prototype-pollution
+    pattern-either:
+      - pattern: $OBJ['__proto__'] = ...
+      - pattern: $OBJ['constructor']['prototype'] = ...
+      - pattern: $OBJ.constructor.prototype = ...
+      - patterns:
+          - pattern: |
+              for ($KEY in $SRC) {
+                $DEST[$KEY] = $SRC[$KEY];
+              }
+          - pattern-not-inside: |
+              for ($KEY in $SRC) {
+                if ($SRC.hasOwnProperty($KEY)) {
+                  $DEST[$KEY] = $SRC[$KEY];
+                }
+              }
+    message: "Prototype pollution vulnerability detected. Validate object keys and use Object.hasOwnProperty()"
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-1321: Improperly Controlled Modification of Object Prototype Attributes ('Prototype Pollution')"
+      owasp:
+        - A08:2021 - Software and Data Integrity Failures
+        - A08:2025 - Software and Data Integrity Failures
+      references:
+        - https://portswigger.net/web-security/prototype-pollution
+        - https://cheatsheetseries.owasp.org/cheatsheets/Prototype_Pollution_Prevention_Cheat_Sheet.html
+      likelihood: MEDIUM
+      impact: HIGH
+      confidence: HIGH

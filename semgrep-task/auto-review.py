@@ -59,6 +59,66 @@ class CodeReviewer:
             '.java': self.rules_dir / 'java-rules.yml'
         }
 
+    def run_eslint(self, file_path):
+        """
+        Run ESLint on JavaScript/TypeScript files and return findings
+        """
+        if file_path.suffix not in ['.js', '.ts', '.jsx', '.tsx']:
+            return []
+        
+        try:
+            # Run ESLint with JSON output
+            # Note: ESLint returns exit code 1 when it finds issues, which is expected
+            cmd = ['npx', 'eslint', '--format', 'json', str(file_path)]
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                encoding='utf-8', 
+                cwd=str(self.script_dir),
+                shell=True  # Required for npx on Windows
+            )
+            
+            # ESLint returns 0 (no issues), 1 (issues found), or 2 (error)
+            # We want to parse output for both 0 and 1
+            if result.returncode > 1:
+                return []
+            
+            if not result.stdout.strip():
+                return []
+            
+            data = json.loads(result.stdout)
+            findings = []
+            
+            for file_result in data:
+                for message in file_result.get('messages', []):
+                    # Skip messages without a ruleId (parsing errors, etc.)
+                    rule_id = message.get('ruleId')
+                    if not rule_id:
+                        continue
+                    
+                    # Convert ESLint severity to Semgrep-like severity
+                    severity_map = {1: 'WARNING', 2: 'ERROR'}
+                    severity = severity_map.get(message.get('severity', 1), 'INFO')
+                    
+                    findings.append({
+                        "Timestamp": pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        "File": file_path.name,
+                        "Line": message.get('line', 0),
+                        "Rule ID": f"eslint-{rule_id}",
+                        "Severity": severity,
+                        "Message": message.get('message', 'ESLint issue detected')
+                    })
+            
+            return findings
+        except (json.JSONDecodeError, FileNotFoundError):
+            # ESLint not available or JSON parse error
+            return []
+        except Exception:
+            # Any other error
+            return []
+
+
 
 
     def pre_scan_semgrep(self, specific_path=None):
@@ -331,8 +391,13 @@ class CodeReviewer:
 
     def review_file_fast(self, file_path):
         """Pulls findings from memory cache instead of running a subprocess."""
+        # Add Semgrep findings from cache
         findings = self.cached_findings.get(file_path.name, [])
         self.results.extend(findings)
+        
+        # Add ESLint findings for JavaScript/TypeScript files
+        eslint_findings = self.run_eslint(file_path)
+        self.results.extend(eslint_findings)
 
     def export_report(self, file_path):
         if not self.results: return
@@ -359,6 +424,35 @@ class CodeReviewer:
             df.to_excel(str(updated_report_path), index=False)
             print(" " * 80, end="\r") 
             print(f"⚠️ reports/{report_name} is opened. So created another file named reports/{updated_report_name}")
+    
+    def export_language_report(self, lang_name, file_count):
+        """Export consolidated report for all files of a specific language"""
+        if not self.results: return
+        
+        report_name = f"{lang_name.capitalize()}Test_Review.xlsx"
+        report_path = self.reports_dir / report_name
+        is_update = report_path.exists()
+        
+        df = pd.DataFrame(self.results)
+        # Ensure 'Rule ID' exists, otherwise default to False for is_header
+        if 'Rule ID' in df.columns:
+            df['is_header'] = df['Rule ID'].str.contains('HEADER|VCT')
+            df = df.sort_values(by=['is_header', 'File', 'Line'], ascending=[False, True, True]).drop(columns=['is_header'])
+        
+        try:
+            df.to_excel(str(report_path), index=False)
+            print(" " * 80, end="\r") 
+            if is_update:
+                print(f"[UPDATE] Updated report: reports/{report_name} ({file_count} files, {len(df)} findings)")
+            else:
+                print(f"[SUCCESS] Created new report: reports/{report_name} ({file_count} files, {len(df)} findings)")
+        except PermissionError:
+            updated_report_name = f"{lang_name.capitalize()}Test_Review_updated.xlsx"
+            updated_report_path = self.reports_dir / updated_report_name
+            df.to_excel(str(updated_report_path), index=False)
+            print(" " * 80, end="\r") 
+            print(f"⚠️ reports/{report_name} is opened. So created another file named reports/{updated_report_name}")
+
 
     def run(self):
         # Print initialization message at the very start
@@ -381,22 +475,72 @@ class CodeReviewer:
                     if file_path.suffix in self.rule_map:
                         files_to_scan.append(file_path)
 
-        # STEP 1: Smart Scan Selection
+        print(f"[AutoReview] Found {len(files_to_scan)} files to scan")
+        
+        # STEP 1: Smart Scan Selection - Run Semgrep once on entire directory
         if len(files_to_scan) == 1:
             self.pre_scan_semgrep(specific_path=files_to_scan[0])
         elif len(files_to_scan) > 1:
+            print(f"[AutoReview] Running optimized bulk scan...")
             self.pre_scan_semgrep()
         
-        # STEP 2: Process files and Export
-        for file_path in files_to_scan:
-            # Display scanning statement regardless of file count
-            print(f"[SCAN] Scanning document: {file_path.name}...", end="\r", flush=True)
-            self.results = [] 
-            self.check_header_logic(file_path) 
-            self.review_file_fast(file_path)  
-            self.export_report(file_path)
+        # STEP 2: Process files in parallel and generate reports
+        print(f"[AutoReview] Generating {len(files_to_scan)} reports in parallel...")
+        
+        def process_single_file(file_path):
+            """Process a single file and generate its report"""
+            try:
+                # Collect findings for this file
+                results = []
+                
+                # Get Semgrep findings from cache
+                findings = self.cached_findings.get(file_path.name, [])
+                results.extend(findings)
+                
+                # Add ESLint findings for JavaScript/TypeScript
+                eslint_findings = self.run_eslint(file_path)
+                results.extend(eslint_findings)
+                
+                # Check header logic
+                header_results = []
+                temp_results = []
+                # We need to temporarily store results since check_header_logic uses self.results
+                saved_results = self.results
+                self.results = temp_results
+                self.check_header_logic(file_path)
+                header_results.extend(self.results)
+                self.results = saved_results
+                results.extend(header_results)
+                
+                # Export report for this file
+                if results:
+                    self.results = results
+                    self.export_report(file_path)
+                    return (file_path.name, len(results), True)
+                else:
+                    return (file_path.name, 0, False)
+            except Exception as e:
+                print(f"[ERROR] Failed to process {file_path.name}: {e}")
+                return (file_path.name, 0, False)
+        
+        # Use ThreadPoolExecutor for parallel processing
+        # Limit workers to avoid overwhelming the system
+        max_workers = min(10, len(files_to_scan))
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_file = {executor.submit(process_single_file, fp): fp for fp in files_to_scan}
             
+            # Process completed tasks
+            completed = 0
+            for future in as_completed(future_to_file):
+                completed += 1
+                filename, findings_count, success = future.result()
+                # Show progress
+                print(f"[{completed}/{len(files_to_scan)}] Processed {filename} ({findings_count} findings)", end="\r", flush=True)
+        
         print("\n[DONE] All documents scanned successfully.")
+
 
 
 if __name__ == "__main__":

@@ -1,0 +1,215 @@
+rules:
+  # ==========================================
+  # GO (GOLANG) SPECIFIC RULES
+  # ==========================================
+
+  # Rule 1: Always Handle Errors Immediately
+  - id: go-rule-1-unhandled-error
+    pattern: |
+      $X, err := $FUNC(...)
+    message: "Rule 1: Always handle errors immediately. Check if err != nil after assignment"
+    languages: [go]
+    severity: WARNING
+    metadata:
+      category: error-handling
+      rule: "Go Rule 1"
+
+  # Rule 3: Avoid panic in Application Code
+  - id: go-rule-3-avoid-panic
+    pattern: panic($X)
+    message: "Rule 3: Avoid using panic in application code. Return errors instead"
+    languages: [go]
+    severity: WARNING
+    metadata:
+      category: error-handling
+      rule: "Go Rule 3"
+
+  # Rule 6: Avoid Global Variables
+  - id: go-rule-6-global-var
+    pattern: var $GLOBAL $TYPE
+    message: "Rule 6: Avoid global variables. Use dependency injection or structs"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: best-practice
+      rule: "Go Rule 6"
+
+  # Rule 8: Do Not Use defer Inside Loops
+  - id: go-rule-8-defer-in-loop
+    pattern: |
+      for ... {
+        defer $FUNC(...)
+      }
+    message: "Rule 8: Do not use defer inside loops. Move defer outside or use a function"
+    languages: [go]
+    severity: ERROR
+    metadata:
+      category: resource-management
+      rule: "Go Rule 8"
+
+  # Rule 10: Avoid Goroutine Leaks
+  - id: go-rule-10-goroutine-leak
+    pattern: |
+      go func() {
+        ...
+      }()
+    message: "Rule 10: Ensure goroutines can exit. Use context or done channels"
+    languages: [go]
+    severity: WARNING
+    metadata:
+      category: concurrency
+      rule: "Go Rule 10"
+
+  # Rule 12: Avoid Empty Interface
+  - id: go-rule-12-empty-interface
+    pattern: func $FUNC($PARAM interface{})
+    message: "Rule 12: Avoid empty interface (interface{}). Use specific types or generics"
+    languages: [go]
+    severity: WARNING
+    metadata:
+      category: type-safety
+      rule: "Go Rule 12"
+
+  # Rule 13: Use Channels Safely
+  - id: go-rule-13-unclosed-channel
+    pattern: |
+      $CH := make(chan $TYPE)
+    message: "Rule 13: Ensure channels are properly closed to avoid goroutine leaks"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: concurrency
+      rule: "Go Rule 13"
+
+  # Rule 14: Avoid time.After in Loops
+  - id: go-rule-14-time-after-leak
+    pattern: |
+      for ... {
+        <-time.After(...)
+      }
+    message: "Rule 14: Avoid time.After in loops. Use time.NewTicker instead"
+    languages: [go]
+    severity: ERROR
+    metadata:
+      category: memory-leak
+      rule: "Go Rule 14"
+
+  # Rule 15: Use crypto/rand for Security
+  - id: go-rule-15-weak-random
+    pattern: rand.Read(...)
+    message: "Rule 15: Use crypto/rand for security-sensitive random numbers, not math/rand"
+    languages: [go]
+    severity: WARNING
+    metadata:
+      category: security
+      rule: "Go Rule 15"
+
+  # Rule 19: Avoid SQL String Concatenation
+  - id: go-rule-19-sql-injection
+    pattern: $DB.Query("... " + $VAR + " ...")
+    message: "Rule 19: Avoid SQL string concatenation. Use parameterized queries"
+    languages: [go]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-89
+      rule: "Go Rule 19"
+
+  # Rule 18: Keep Functions Small and Focused
+  - id: go-rule-18-long-function
+    pattern: |
+      func $FUNC(...) ... {
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+        ...
+      }
+    message: "Rule 18: Keep functions small and focused. Break down large functions"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: code-quality
+      rule: "Go Rule 18"
+
+  # ==========================================
+  # NAMING CONVENTION RULES
+  # ==========================================
+
+  # Rule 20: Use fmt.Println Sparingly in Production
+  - id: go-rule-20-no-fmt-println
+    pattern-either:
+      - pattern: fmt.Println(...)
+      - pattern: fmt.Printf(...)
+      - pattern: fmt.Print(...)
+    message: "Go Rule 20: Avoid fmt.Println in production. Use proper logging (log package or structured logger)"
+    languages: [go]
+    severity: WARNING
+    metadata:
+      category: best-practice
+      rule: "Go Rule 20"
+
+  # Rule 21: Exported Names Should Use PascalCase
+  - id: go-rule-21-exported-naming-pascalcase
+    pattern: |
+      type $TYPE struct {
+        ...
+      }
+    message: "Go Rule 21: Exported types should use PascalCase (e.g., UserService, not userService)"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Go Rule 21"
+
+  # Rule 22: Function Names Should Use camelCase or PascalCase
+  - id: go-rule-22-function-naming
+    pattern: |
+      func $FUNC(...) ... {
+        ...
+      }
+    message: "Go Rule 22: Use PascalCase for exported functions, camelCase for unexported (e.g., CalculateTotal or calculateTotal)"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Go Rule 22"
+
+  # Rule 23: Variable Names Should Use camelCase
+  - id: go-rule-23-variable-naming-camelcase
+    pattern: |
+      $VAR := $VALUE
+    message: "Go Rule 23: Variable names should use camelCase (e.g., userName, not user_name or UserName for local vars)"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Go Rule 23"
+
+  # Rule 24: Constants Should Use PascalCase or camelCase
+  - id: go-rule-24-constant-naming
+    pattern: |
+      const $CONST = $VALUE
+    message: "Go Rule 24: Use PascalCase for exported constants, camelCase for unexported (e.g., MaxRetries or maxRetries)"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Go Rule 24"
+
+  # Rule 25: Package Names Should Be Lowercase
+  - id: go-rule-25-package-naming-lowercase
+    pattern: package $PKG
+    message: "Go Rule 25: Package names should be lowercase, single word (e.g., package http, not package HTTP or httpUtils)"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Go Rule 25"

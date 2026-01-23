@@ -1,0 +1,16 @@
+rules:
+
+  # AI-Generated Rule
+  - id: --language-eval-usage
+    pattern-either:
+    - pattern: eval(...)
+    - pattern: eval(...)
+    message: Avoid using eval() due to potential security risks and performance issues.
+      Consider using safer alternatives, such as ast.literal_eval() for simple expressions
+      or a parsing library for complex expressions.
+    languages:
+    - python
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-95

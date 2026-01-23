@@ -46,6 +46,8 @@ rules:
       - metavariable-regex:
           metavariable: $CONST
           regex: '^[a-z].*'
+      - pattern-not: def $FUNC(...)
+      - pattern-not: self.$ATTR = ...
     message: "Class-level constants should use UPPER_CASE naming"
     languages: [python]
     severity: INFO
@@ -96,6 +98,17 @@ rules:
       category: best-practice
       subcategory: string-formatting
 
+  # Rule 7: Use List Comprehension Instead of map/filter with lambda
+  - id: py-best-practice-list-comp-over-map-lambda
+    pattern-either:
+      - pattern: map(lambda $X, $LIST)
+      - pattern: filter(lambda $X, $LIST)
+    message: "Prefer list comprehension over map/filter with lambda for better readability"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: best-practice
+      subcategory: functional-programming
 
   # Rule 8: Require Docstrings for Public Functions
   - id: py-documentation-function-docstring

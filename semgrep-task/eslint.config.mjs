@@ -1,0 +1,72 @@
+import js from "@eslint/js";
+
+export default [
+    js.configs.recommended,
+    {
+        rules: {
+            "no-var": "warn",
+            "prefer-const": "warn",
+            "no-console": "off",
+            "eqeqeq": ["error", "always"],
+            "no-eval": "error",
+            "no-implied-eval": "error",
+            "no-new-func": "error",
+            "no-await-in-loop": "warn",
+            "require-await": "warn",
+            "no-return-await": "warn",
+            "prefer-promise-reject-errors": "error",
+            "no-async-promise-executor": "error",
+            "no-promise-executor-return": "error",
+            "max-nested-callbacks": ["warn", 3],
+            "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+            "no-undef": "warn",
+            "no-redeclare": "error",
+            "no-shadow": "warn",
+            "camelcase": ["warn", { "properties": "never" }],
+            "curly": ["warn", "multi-line"],
+            "default-case": "warn",
+            "dot-notation": "warn",
+            "no-alert": "warn",
+            "no-caller": "error",
+            "no-empty-function": "warn",
+            "no-lone-blocks": "error",
+            "no-multi-spaces": "warn",
+            "no-new": "warn",
+            "no-new-wrappers": "error",
+            "no-return-assign": "error",
+            "no-self-compare": "error",
+            "no-sequences": "error",
+            "no-throw-literal": "error",
+            "no-unmodified-loop-condition": "error",
+            "no-useless-call": "error",
+            "no-useless-concat": "warn",
+            "no-useless-return": "warn",
+            "prefer-regex-literals": "warn",
+            "radix": "error",
+            "yoda": "error"
+        },
+        languageOptions: {
+            ecmaVersion: "latest",
+            sourceType: "module",
+            globals: {
+                "console": "readonly",
+                "process": "readonly",
+                "require": "readonly",
+                "module": "readonly",
+                "__dirname": "readonly",
+                "__filename": "readonly",
+                "exports": "readonly",
+                "global": "readonly",
+                "Buffer": "readonly",
+                "setTimeout": "readonly",
+                "setInterval": "readonly",
+                "clearTimeout": "readonly",
+                "clearInterval": "readonly",
+                "document": "readonly",
+                "window": "readonly",
+                "navigator": "readonly",
+                "fetch": "readonly"
+            }
+        }
+    }
+];

@@ -195,6 +195,75 @@ export default function ScanProgressPage() {
                         )}
                     </div>
 
+                    {/* Overall Accuracy - NEW */}
+                    {scan.status === "completed" && scan.reportStats && (
+                        <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 mb-6">
+                            <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Overall Code Quality</h3>
+                                    <p className="text-sm text-gray-600 mb-3">
+                                        Based on {scan.reportStats.overallSeverityBreakdown?.ERROR || 0} critical errors across all files
+                                    </p>
+                                    <div className="flex gap-4 text-sm">
+                                        <span className="text-red-600 font-medium">
+                                            ⚠ {scan.reportStats.overallSeverityBreakdown?.ERROR || 0} Errors
+                                        </span>
+                                        <span className="text-yellow-600 font-medium">
+                                            ⚡ {scan.reportStats.overallSeverityBreakdown?.WARNING || 0} Warnings
+                                        </span>
+                                        <span className="text-blue-600 font-medium">
+                                            ℹ {scan.reportStats.overallSeverityBreakdown?.INFO || 0} Info
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Overall Accuracy Meter */}
+                                <div className="relative w-32 h-32">
+                                    <svg className="w-32 h-32 transform -rotate-90">
+                                        <circle
+                                            cx="64"
+                                            cy="64"
+                                            r="56"
+                                            stroke="currentColor"
+                                            strokeWidth="8"
+                                            fill="none"
+                                            className="text-gray-200"
+                                        />
+                                        <circle
+                                            cx="64"
+                                            cy="64"
+                                            r="56"
+                                            stroke="currentColor"
+                                            strokeWidth="8"
+                                            fill="none"
+                                            className={
+                                                scan.reportStats.overallColor === 'green' ? 'stroke-green-600' :
+                                                    scan.reportStats.overallColor === 'yellow' ? 'stroke-yellow-600' :
+                                                        scan.reportStats.overallColor === 'orange' ? 'stroke-orange-600' :
+                                                            'stroke-red-600'
+                                            }
+                                            strokeDasharray={2 * Math.PI * 56}
+                                            strokeDashoffset={2 * Math.PI * 56 - ((scan.reportStats.overallAccuracy || 0) / 100) * 2 * Math.PI * 56}
+                                            strokeLinecap="round"
+                                        />
+                                    </svg>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                        <span className="text-3xl font-bold text-gray-900">
+                                            {scan.reportStats.overallAccuracy || 0}%
+                                        </span>
+                                        <span className={`text-sm font-semibold ${scan.reportStats.overallColor === 'green' ? 'text-green-700' :
+                                            scan.reportStats.overallColor === 'yellow' ? 'text-yellow-700' :
+                                                scan.reportStats.overallColor === 'orange' ? 'text-orange-700' :
+                                                    'text-red-700'
+                                            }`}>
+                                            {scan.reportStats.overallQuality || 'Unknown'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Progress Bar */}
                     {scan.status === "completed" ? (
                         <div className="space-y-2">
@@ -236,37 +305,21 @@ export default function ScanProgressPage() {
                                 const language = filename.replace('_Review.xlsx', '').replace('.xlsx', '');
 
                                 // Get report stats from backend
-                                const stats = scan.reportStats?.[index] || {
+                                const stats = scan.reportStats?.reports?.[index] || {
                                     totalFindings: 0,
-                                    accuracyScore: 100,
-                                    quality: 'Unknown',
-                                    color: 'gray',
                                     severityBreakdown: { ERROR: 0, WARNING: 0, INFO: 0 }
                                 };
-
-                                // Color mapping for UI
-                                const colorMap = {
-                                    green: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300', ring: 'stroke-green-600' },
-                                    yellow: { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300', ring: 'stroke-yellow-600' },
-                                    orange: { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300', ring: 'stroke-orange-600' },
-                                    red: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', ring: 'stroke-red-600' },
-                                    gray: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300', ring: 'stroke-gray-600' }
-                                };
-
-                                const colors = colorMap[stats.color] || colorMap.gray;
-                                const circumference = 2 * Math.PI * 40;
-                                const strokeDashoffset = circumference - (stats.accuracyScore / 100) * circumference;
 
                                 return (
                                     <div
                                         key={index}
-                                        className={`border ${colors.border} rounded-xl p-4 hover:bg-gray-50 transition`}
+                                        className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition"
                                     >
                                         <div className="flex items-center justify-between gap-4">
                                             {/* File Info */}
                                             <div className="flex items-center gap-4 flex-1">
-                                                <div className={`w-12 h-12 rounded-lg ${colors.bg} flex items-center justify-center`}>
-                                                    <FileSpreadsheet className={`size-6 ${colors.text}`} />
+                                                <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                                                    <FileSpreadsheet className="size-6 text-blue-700" />
                                                 </div>
 
                                                 <div className="flex-1">
@@ -299,65 +352,24 @@ export default function ScanProgressPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Accuracy Meter */}
-                                            <div className="flex items-center gap-4">
-                                                {/* Circular Progress */}
-                                                <div className="relative w-24 h-24">
-                                                    <svg className="w-24 h-24 transform -rotate-90">
-                                                        {/* Background circle */}
-                                                        <circle
-                                                            cx="48"
-                                                            cy="48"
-                                                            r="40"
-                                                            stroke="currentColor"
-                                                            strokeWidth="6"
-                                                            fill="none"
-                                                            className="text-gray-200"
-                                                        />
-                                                        {/* Progress circle */}
-                                                        <circle
-                                                            cx="48"
-                                                            cy="48"
-                                                            r="40"
-                                                            stroke="currentColor"
-                                                            strokeWidth="6"
-                                                            fill="none"
-                                                            className={colors.ring}
-                                                            strokeDasharray={circumference}
-                                                            strokeDashoffset={strokeDashoffset}
-                                                            strokeLinecap="round"
-                                                        />
-                                                    </svg>
-                                                    {/* Score text */}
-                                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                                        <span className="text-xl font-bold text-gray-900">
-                                                            {stats.accuracyScore}%
-                                                        </span>
-                                                        <span className={`text-xs font-medium ${colors.text}`}>
-                                                            {stats.quality}
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Download Button */}
-                                                <button
-                                                    onClick={() => handleDownloadReport(reportPath, index)}
-                                                    disabled={downloadingIndex === index}
-                                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    {downloadingIndex === index ? (
-                                                        <>
-                                                            <Loader2 className="size-4 animate-spin" />
-                                                            Downloading...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Download className="size-4" />
-                                                            Download
-                                                        </>
-                                                    )}
-                                                </button>
-                                            </div>
+                                            {/* Download Button */}
+                                            <button
+                                                onClick={() => handleDownloadReport(reportPath, index)}
+                                                disabled={downloadingIndex === index}
+                                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {downloadingIndex === index ? (
+                                                    <>
+                                                        <Loader2 className="size-4 animate-spin" />
+                                                        Downloading...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Download className="size-4" />
+                                                        Download
+                                                    </>
+                                                )}
+                                            </button>
                                         </div>
                                     </div>
                                 );

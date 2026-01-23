@@ -1,0 +1,912 @@
+rules:
+  # ==========================================
+  # JAVA SPECIFIC RULES
+  # ==========================================
+
+  # Rule 1: Use .equals() for String Comparison
+  - id: java-rule-1-string-equals
+    pattern: $STR1 == $STR2
+    message: "Rule 1: Use .equals() for string comparison, not =="
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: best-practice
+      rule: "Java Rule 1"
+
+  # Rule 2: Avoid Using System.out.println in Production
+  - id: java-rule-2-no-system-out
+    pattern-either:
+      - pattern: System.out.println(...)
+      - pattern: System.err.println(...)
+    message: "Rule 2: Avoid System.out.println in production. Use proper logging framework (log4j, slf4j)"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: best-practice
+      rule: "Java Rule 2"
+
+  # Rule 3: Always Handle Exceptions Properly
+  - id: java-rule-3-handle-exceptions
+    pattern: |
+      catch (Exception $E) {
+        System.out.println($E);
+      }
+    message: "Rule 3: Handle exceptions properly. Use logger.error() instead of System.out"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: error-handling
+      rule: "Java Rule 3"
+
+  # Rule 4: Do Not Leave Empty Catch Blocks
+  - id: java-rule-4-empty-catch
+    pattern: |
+      try {
+        ...
+      } catch (Exception $E) {
+      }
+    message: "Rule 4: Do not leave empty catch blocks. Log or rethrow exceptions"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: error-handling
+      rule: "Java Rule 4"
+
+  # Rule 6: Prefer Interfaces Over Implementations
+  - id: java-rule-6-use-interface
+    pattern-either:
+      - pattern: ArrayList<$T> $VAR = new ArrayList<$T>(...)
+      - pattern: HashMap<$K, $V> $VAR = new HashMap<$K, $V>(...)
+      - pattern: HashSet<$T> $VAR = new HashSet<$T>(...)
+    message: "Rule 6: Use interface types (List, Map, Set) instead of concrete implementations"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: best-practice
+      rule: "Java Rule 6"
+
+  # Rule 7: Keep Fields Private
+  - id: java-rule-7-private-fields
+    pattern: public $TYPE $FIELD;
+    message: "Rule 7: Keep fields private. Use getters/setters for access"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: encapsulation
+      rule: "Java Rule 7"
+
+  # Rule 11: Avoid Catching Generic Exception
+  - id: java-rule-11-generic-exception
+    pattern: catch (Exception $E)
+    message: "Rule 11: Avoid catching generic Exception. Catch specific exceptions"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: error-handling
+      rule: "Java Rule 11"
+
+  # Rule 14: Avoid String Concatenation in Loops
+  - id: java-rule-14-string-concat-loop
+    pattern: |
+      for (...) {
+        $STR = $STR + $X;
+      }
+    message: "Rule 14: Use StringBuilder for string concatenation in loops"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: performance
+      rule: "Java Rule 14"
+
+  # Rule 15: Use PreparedStatement for SQL
+  - id: java-rule-15-sql-injection
+    pattern: |
+      Statement $STMT = ...;
+      $STMT.execute("... " + $VAR + " ...");
+    message: "Rule 15: Use PreparedStatement to prevent SQL injection"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-89
+      rule: "Java Rule 15"
+
+  # Rule 19: Avoid Thread.sleep() in Loops
+  - id: java-rule-19-sleep-in-loop
+    pattern: |
+      while (...) {
+        Thread.sleep(...);
+      }
+    message: "Rule 19: Avoid Thread.sleep() in loops. Use ScheduledExecutorService"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: concurrency
+      rule: "Java Rule 19"
+
+  # Null Pointer Risk
+  - id: java-null-check-missing
+    pattern: |
+      if ($OBJ != null) {
+        $OBJ.$METHOD(...);
+      }
+      $OBJ.$METHOD2(...);
+    message: "Potential null pointer exception. Check for null before use"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: null-safety
+
+  # Resource Leak
+  - id: java-resource-leak
+    pattern: |
+      $RES = new FileInputStream(...);
+    message: "Resource may not be closed. Use try-with-resources"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: resource-management
+
+  # Weak Hashing
+  - id: java-weak-hash
+    pattern-either:
+      - pattern: MessageDigest.getInstance("MD5")
+      - pattern: MessageDigest.getInstance("SHA1")
+    message: "MD5 and SHA1 are weak. Use SHA-256 or stronger"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-327
+
+  # ==========================================
+  # SPRING BOOT SPECIFIC RULES
+  # ==========================================
+
+  # SQL Injection in Spring JPA
+  - id: spring-sql-injection-native-query
+    pattern-either:
+      - pattern: $EM.createNativeQuery("..." + $VAR + "...")
+      - pattern: $EM.createQuery("..." + $VAR + "...")
+    message: "SPRING BOOT: SQL Injection risk. Use parameterized queries with setParameter()"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-89
+      framework: spring-boot
+
+  # Missing @Transactional
+  - id: spring-missing-transactional
+    patterns:
+      - pattern-inside: |
+          class $CLASS {
+            ...
+          }
+      - pattern: |
+          public $TYPE $METHOD(...) {
+            ...
+            $REPO.save(...);
+            ...
+          }
+      - pattern-not-inside: |
+          @Transactional
+          public $TYPE $METHOD(...) {
+            ...
+          }
+    message: "SPRING BOOT: Method performs database operations but lacks @Transactional annotation"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: transaction-management
+      framework: spring-boot
+
+  # Hardcoded Credentials in application.properties
+  - id: spring-hardcoded-credentials
+    pattern-either:
+      - pattern: |
+          spring.datasource.password=$PASSWORD
+      - pattern: |
+          spring.datasource.username=$USERNAME
+    message: "SPRING BOOT: Hardcoded database credentials. Use environment variables or vault"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-798
+      framework: spring-boot
+
+  # Missing @Valid on Request Body
+  - id: spring-missing-validation
+    patterns:
+      - pattern: |
+          public $TYPE $METHOD(@RequestBody $BODY $PARAM) {
+            ...
+          }
+      - pattern-not: |
+          public $TYPE $METHOD(@RequestBody @Valid $BODY $PARAM) {
+            ...
+          }
+    message: "SPRING BOOT: Missing @Valid annotation. Always validate request bodies"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: input-validation
+      framework: spring-boot
+
+  # Cross-Origin Resource Sharing (CORS) - Allow All
+  - id: spring-cors-allow-all
+    pattern-either:
+      - pattern: |
+          @CrossOrigin(origins = "*")
+      - pattern: |
+          .allowedOrigins("*")
+    message: "SPRING BOOT: CORS allows all origins (*). Restrict to specific domains for security"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-942
+      framework: spring-boot
+
+  # Missing CSRF Protection
+  - id: spring-csrf-disabled
+    pattern: |
+      .csrf().disable()
+    message: "SPRING BOOT: CSRF protection disabled. Only disable for stateless APIs with proper authentication"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-352
+      framework: spring-boot
+
+  # Insecure Password Encoding
+  - id: spring-plaintext-password
+    pattern-either:
+      - pattern: new PlaintextPasswordEncoder()
+      - pattern: NoOpPasswordEncoder.getInstance()
+    message: "SPRING BOOT: Plaintext password encoder detected. Use BCryptPasswordEncoder or Argon2"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-916
+      framework: spring-boot
+
+  # Missing @PreAuthorize or @Secured
+  - id: spring-missing-authorization
+    patterns:
+      - pattern-inside: |
+          @RestController
+          class $CLASS {
+            ...
+          }
+      - pattern: |
+          @DeleteMapping(...)
+          public $TYPE $METHOD(...) {
+            ...
+          }
+      - pattern-not-inside: |
+          @PreAuthorize(...)
+          public $TYPE $METHOD(...) {
+            ...
+          }
+    message: "SPRING BOOT: DELETE endpoint lacks authorization check. Add @PreAuthorize or @Secured"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: authorization
+      framework: spring-boot
+
+  # Path Traversal Risk
+  - id: spring-path-traversal
+    pattern: |
+      new File($DIR + $USERPATH)
+    message: "SPRING BOOT: Path traversal risk. Sanitize user input before file operations"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-22
+      framework: spring-boot
+
+  # Missing Rate Limiting
+  - id: spring-missing-rate-limit
+    patterns:
+      - pattern-inside: |
+          @RestController
+          class $CLASS {
+            ...
+          }
+      - pattern: |
+          @PostMapping(...)
+          public $TYPE $METHOD(...) {
+            ...
+          }
+      - pattern-not-inside: |
+          @RateLimiter(...)
+          public $TYPE $METHOD(...) {
+            ...
+          }
+    message: "SPRING BOOT: POST endpoint lacks rate limiting. Consider adding @RateLimiter for API protection"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: api-security
+      framework: spring-boot
+
+  # Exposed Actuator Endpoints
+  - id: spring-exposed-actuator
+    pattern: |
+      management.endpoints.web.exposure.include=*
+    message: "SPRING BOOT: All actuator endpoints exposed. Limit to specific endpoints (health, info)"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      framework: spring-boot
+
+  # Missing Exception Handler
+  - id: spring-missing-exception-handler
+    patterns:
+      - pattern-inside: |
+          @RestController
+          class $CLASS {
+            ...
+          }
+      - pattern-not-inside: |
+          @ExceptionHandler(...)
+          public $TYPE $METHOD(...) {
+            ...
+          }
+    message: "SPRING BOOT: Controller lacks @ExceptionHandler. Add global exception handling"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: error-handling
+      framework: spring-boot
+
+  # Insecure Deserialization
+  - id: spring-insecure-deserialization
+    pattern-either:
+      - pattern: ObjectInputStream($INPUT)
+      - pattern: $OBJ.readObject()
+    message: "SPRING BOOT: Insecure deserialization detected. Validate input or use safe alternatives"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-502
+      framework: spring-boot
+
+  # Missing Response Entity
+  - id: spring-missing-response-entity
+    pattern: |
+      @GetMapping(...)
+      public $TYPE $METHOD(...) {
+        return $OBJ;
+      }
+    message: "SPRING BOOT: Return ResponseEntity for better HTTP status control"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: best-practice
+      framework: spring-boot
+
+  # Using @Autowired on Fields
+  - id: spring-field-injection
+    pattern: |
+      @Autowired
+      private $TYPE $FIELD;
+    message: "SPRING BOOT: Avoid field injection. Use constructor injection for better testability"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: dependency-injection
+      framework: spring-boot
+
+   # ==========================================
+  # NAMING CONVENTION RULES
+  # ==========================================
+
+  # Rule 21: Class Names Should Use PascalCase
+  - id: java-rule-21-class-naming-pascalcase
+    pattern: |
+      class $CLASS {
+        ...
+      }
+    message: "Java Rule 21: Class names should use PascalCase (e.g., UserService, not userService or user_service)"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: naming-convention
+      rule: "Java Rule 21"
+
+  # Rule 22: Method Names Should Use camelCase
+  - id: java-rule-22-method-naming-camelcase
+    pattern: |
+      public $TYPE $METHOD(...) {
+        ...
+      }
+    message: "Java Rule 22: Method names should use camelCase (e.g., calculateTotal, not CalculateTotal or calculate_total)"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: naming-convention
+      rule: "Java Rule 22"
+
+  # Rule 23: Variable Names Should Use camelCase
+  - id: java-rule-23-variable-naming-camelcase
+    pattern: $TYPE $VAR = $VALUE
+    message: "Java Rule 23: Variable names should use camelCase (e.g., userName, not user_name or UserName)"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Java Rule 23"
+
+  # Rule 24: Constants Should Use UPPER_CASE
+  - id: java-rule-24-constant-naming-uppercase
+    pattern: |
+      static final $TYPE $CONST = $VALUE
+    message: "Java Rule 24: Constants should use UPPER_CASE with underscores (e.g., MAX_RETRIES, API_KEY)"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Java Rule 24"
+
+  # Rule 25: Package Names Should Be Lowercase
+  - id: java-rule-25-package-naming-lowercase
+    pattern: package $PKG
+    message: "Java Rule 25: Package names should be all lowercase (e.g., com.example.project, not com.Example.Project)"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: naming-convention
+      rule: "Java Rule 25"
+
+  # ==========================================
+  # PERFORMANCE OPTIMIZATION RULES
+  # ==========================================
+
+  # Inefficient Collection Contains in Loop
+  - id: java-inefficient-collection-contains
+    pattern: |
+      for (...) {
+        ...
+        $LIST.contains($ITEM)
+        ...
+      }
+    message: "Using ArrayList.contains() in a loop is O(n²). Consider using HashSet for O(1) lookups"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: performance
+      cwe: CWE-407
+
+  # Autoboxing in Loop
+  - id: java-autoboxing-in-loop
+    pattern-either:
+      - pattern: |
+          for (...) {
+            ...
+            Integer $VAR = $INT;
+            ...
+          }
+      - pattern: |
+          for (...) {
+            ...
+            Long $VAR = $LONG;
+            ...
+          }
+    message: "Autoboxing primitives in loops creates unnecessary objects. Use primitives directly"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  # String.format in Loop
+  - id: java-string-format-in-loop
+    pattern: |
+      for (...) {
+        ...
+        String.format(...)
+        ...
+      }
+    message: "String.format() is expensive in loops. Consider StringBuilder or simple concatenation"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  # Inefficient Map Iteration
+  - id: java-inefficient-map-iteration
+    pattern: |
+      for ($KEY : $MAP.keySet()) {
+        ...
+        $MAP.get($KEY)
+        ...
+      }
+    message: "Inefficient map iteration. Use entrySet() instead of keySet() to avoid double lookup"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: performance
+
+  # Unnecessary Object Creation in Loop
+  - id: java-object-creation-in-loop
+    pattern: |
+      for (...) {
+        ...
+        new $CLASS(...)
+        ...
+      }
+    message: "Creating objects in loops can impact performance. Consider object reuse or caching"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: performance
+
+  # ==========================================
+  # CONCURRENCY & THREADING RULES
+  # ==========================================
+
+  # Synchronization on String
+  - id: java-sync-on-string
+    pattern: |
+      synchronized ($STR) {
+        ...
+      }
+    message: "Never synchronize on String literals - they are interned and shared. Use dedicated lock object"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: concurrency
+      cwe: CWE-662
+
+  # Double-Checked Locking
+  - id: java-double-checked-locking
+    pattern: |
+      if ($INSTANCE == null) {
+        synchronized (...) {
+          if ($INSTANCE == null) {
+            $INSTANCE = ...;
+          }
+        }
+      }
+    message: "Double-checked locking is broken without volatile. Mark instance as volatile"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: concurrency
+      cwe: CWE-609
+
+  # Non-Atomic Operations
+  - id: java-non-atomic-operation
+    pattern-either:
+      - pattern: $VAR = $VAR + 1
+      - pattern: $VAR++
+      - pattern: ++$VAR
+    message: "Increment operation is not atomic in concurrent context. Use AtomicInteger or synchronization"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: concurrency
+
+  # ThreadLocal Without Cleanup
+  - id: java-threadlocal-no-cleanup
+    pattern: |
+      ThreadLocal<$TYPE> $VAR = ...;
+    message: "ThreadLocal can cause memory leaks. Always call remove() in finally block, especially in thread pools"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: concurrency
+      cwe: CWE-401
+
+  # Volatile Instead of Atomic
+  - id: java-volatile-instead-of-atomic
+    pattern: |
+      private volatile int $VAR;
+    message: "For counters and numeric operations, use AtomicInteger instead of volatile int"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: concurrency
+
+  # ==========================================
+  # STREAM API & FUNCTIONAL PROGRAMMING RULES
+  # ==========================================
+
+  # Stream Unnecessary Collect
+  - id: java-stream-unnecessary-collect
+    pattern-either:
+      - pattern: $STREAM.collect(Collectors.toList()).size()
+      - pattern: $STREAM.collect(Collectors.toSet()).size()
+    message: "Inefficient: Use .count() instead of .collect().size()"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  # Peek with Side Effects
+  - id: java-stream-peek-side-effects
+    pattern: |
+      .peek($LAMBDA)
+    message: "Don't use peek() for side effects. Use forEach() or collect() instead"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: best-practice
+
+  # Parallel Stream Misuse
+  - id: java-parallel-stream-small-collection
+    pattern: |
+      $LIST.parallelStream()
+    message: "Parallel streams have overhead. Only use for large datasets (>10k elements) with CPU-intensive operations"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: performance
+
+  # Optional.get Without Check
+  - id: java-optional-get-without-check
+    pattern: |
+      $OPT.get()
+    message: "Calling Optional.get() without isPresent() can throw NoSuchElementException. Use orElse() or orElseThrow()"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: null-safety
+
+  # ==========================================
+  # JUNIT & TESTING ANTI-PATTERNS
+  # ==========================================
+
+  # Test Missing Assertions
+  - id: java-test-no-assertions
+    patterns:
+      - pattern-inside: |
+          @Test
+          public void $METHOD(...) {
+            ...
+          }
+      - pattern-not-inside: |
+          @Test
+          public void $METHOD(...) {
+            ...
+            assert...(...);
+            ...
+          }
+    message: "Test method has no assertions. Tests without assertions don't verify behavior"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: testing
+
+  # Hardcoded Test Data
+  - id: java-test-hardcoded-production-data
+    pattern-either:
+      - pattern: |
+          @Test
+          public void $METHOD(...) {
+            ...
+            $VAR = "admin@example.com";
+            ...
+          }
+      - pattern: |
+          @Test
+          public void $METHOD(...) {
+            ...
+            $VAR = "production";
+            ...
+          }
+    message: "Avoid hardcoded production-like data in tests. Use test-specific data"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: testing
+
+  # Thread.sleep in Tests
+  - id: java-test-sleep-instead-of-wait
+    patterns:
+      - pattern-inside: |
+          @Test
+          public void $METHOD(...) {
+            ...
+          }
+      - pattern: Thread.sleep(...)
+    message: "Don't use Thread.sleep() in tests. Use proper waiting mechanisms (Awaitility, CountDownLatch)"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: testing
+
+  # ==========================================
+  # JPA/HIBERNATE SPECIFIC RULES
+  # ==========================================
+
+  # N+1 Query Problem
+  - id: jpa-potential-n-plus-one
+    pattern: |
+      @OneToMany
+      private $TYPE $FIELD;
+    message: "Potential N+1 query issue. Add @BatchSize or use JOIN FETCH in queries"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: performance
+      framework: jpa
+
+  # Missing Fetch Type
+  - id: jpa-missing-fetch-type
+    patterns:
+      - pattern: |
+          @OneToMany
+          private $TYPE $FIELD;
+      - pattern-not: |
+          @OneToMany(fetch = ...)
+          private $TYPE $FIELD;
+    message: "Explicitly specify fetch type (LAZY/EAGER) for @OneToMany relationships"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: best-practice
+      framework: jpa
+
+  # Bidirectional Without mappedBy
+  - id: jpa-bidirectional-no-mappedby
+    pattern: |
+      @OneToMany
+      private List<$TYPE> $FIELD;
+    message: "For bidirectional relationships, use mappedBy to avoid duplicate foreign keys"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: best-practice
+      framework: jpa
+
+  # Entity Missing equals/hashCode
+  - id: jpa-entity-missing-equals-hashcode
+    patterns:
+      - pattern-inside: |
+          @Entity
+          class $CLASS {
+            ...
+          }
+      - pattern-not-inside: |
+          @Entity
+          class $CLASS {
+            ...
+            public boolean equals(...) {
+              ...
+            }
+            ...
+          }
+    message: "JPA entities should override equals() and hashCode() for proper collection handling"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: best-practice
+      framework: jpa
+
+  # ==========================================
+  # JACKSON/JSON HANDLING RULES
+  # ==========================================
+
+  # Jackson Deserialize Any Class
+  - id: jackson-enable-default-typing
+    pattern-either:
+      - pattern: enableDefaultTyping(...)
+      - pattern: activateDefaultTyping(...)
+    message: "Security Risk: enableDefaultTyping allows arbitrary class deserialization. Use @JsonTypeInfo with allowlist"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-502
+
+  # Missing JsonIgnoreProperties
+  - id: jackson-missing-ignore-properties
+    patterns:
+      - pattern-inside: |
+          class $CLASS {
+            ...
+          }
+      - pattern: |
+          @RequestBody
+          $TYPE $PARAM
+      - pattern-not-inside: |
+          @JsonIgnoreProperties(...)
+          class $CLASS {
+            ...
+          }
+    message: "Add @JsonIgnoreProperties(ignoreUnknown=true) to prevent deserialization errors"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: best-practice
+
+  # Sensitive Data in JSON
+  - id: jackson-sensitive-field-exposed
+    patterns:
+      - pattern-inside: |
+          class $CLASS {
+            ...
+          }
+      - pattern-either:
+          - pattern: |
+              private String password;
+          - pattern: |
+              private String secret;
+          - pattern: |
+              private String apiKey;
+      - pattern-not-inside: |
+          @JsonIgnore
+          private $TYPE $FIELD;
+    message: "Sensitive field may be exposed in JSON. Add @JsonIgnore annotation"
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-200
+
+  # ==========================================
+  # MICROSERVICES PATTERNS
+  # ==========================================
+
+  # Missing Circuit Breaker
+  - id: spring-missing-circuit-breaker
+    patterns:
+      - pattern: RestTemplate.exchange(...)
+      - pattern-not-inside: |
+          @CircuitBreaker(...)
+          public $TYPE $METHOD(...) {
+            ...
+          }
+    message: "External HTTP calls should use @CircuitBreaker for resilience"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: resilience
+      framework: spring-cloud
+
+  # Missing Retry Logic
+  - id: spring-missing-retry
+    patterns:
+      - pattern: |
+          public $TYPE $METHOD(...) {
+            ...
+            $CLIENT.get(...)
+            ...
+          }
+      - pattern-not-inside: |
+          @Retryable(...)
+          public $TYPE $METHOD(...) {
+            ...
+          }
+    message: "HTTP calls should have @Retryable for transient failure handling"
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: resilience
+      framework: spring-cloud
+
+  # Feign Without Fallback
+  - id: feign-without-fallback
+    patterns:
+      - pattern-inside: |
+          @FeignClient(...)
+          interface $INTERFACE {
+            ...
+          }
+      - pattern-not: |
+          @FeignClient(fallback = ...)
+    message: "Feign clients should specify fallback for graceful degradation"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: resilience
+      framework: spring-cloud

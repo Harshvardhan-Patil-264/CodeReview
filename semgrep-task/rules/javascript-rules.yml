@@ -38,28 +38,28 @@ rules:
       impact: MEDIUM
       confidence: HIGH
 
-  # Rule 2: Use const or let (Never var)
-  - id: js-rule-2-no-var
-    patterns:
-      - pattern-either:
-          - pattern: var $VAR = ...
-          - pattern: var $VAR
-      - pattern-not: const $VAR = ...
-      - pattern-not: let $VAR = ...
-      - pattern-not: const $VAR
-      - pattern-not: let $VAR
-    message: "Rule 2: Never use 'var'. Use 'const' or 'let' to avoid scope and hoisting issues"
-    languages: [javascript, typescript]
-    severity: ERROR
-    metadata:
-      category: best-practice
-      rule: "JS Rule 2"
-      references:
-        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/var
-        - https://eslint.org/docs/latest/rules/no-var
-      likelihood: HIGH
-      impact: MEDIUM
-      confidence: HIGH
+  # # Rule 2: Use const or let (Never var)
+  # - id: js-rule-2-no-var
+  #   patterns:
+  #     - pattern-either:
+  #         - pattern: var $VAR = ...
+  #         - pattern: var $VAR
+  #     - pattern-not: const $VAR = ...
+  #     - pattern-not: let $VAR = ...
+  #     - pattern-not: const $VAR
+  #     - pattern-not: let $VAR
+  #   message: "Rule 2: Never use 'var'. Use 'const' or 'let' to avoid scope and hoisting issues"
+  #   languages: [javascript, typescript]
+  #   severity: ERROR
+  #   metadata:
+  #     category: best-practice
+  #     rule: "JS Rule 2"
+  #     references:
+  #       - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/var
+  #       - https://eslint.org/docs/latest/rules/no-var
+  #     likelihood: HIGH
+  #     impact: MEDIUM
+  #     confidence: HIGH
 
   # Rule 3: Prefer const Over let (IMPROVED - Reduces false positives)
   # Note: This rule is intentionally conservative to avoid false positives
@@ -141,40 +141,6 @@ rules:
       impact: MEDIUM
       confidence: MEDIUM
 
-  # Rule 7: Prefer async/await
-  - id: js-rule-7-prefer-async-await
-    pattern: |
-      $FUNC().then($HANDLER1).then($HANDLER2)
-    message: "Rule 7: Prefer async/await over promise chains for better readability and control flow"
-    languages: [javascript, typescript]
-    severity: INFO
-    metadata:
-      category: async-patterns
-      rule: "JS Rule 7"
-      references:
-        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
-      likelihood: LOW
-      impact: LOW
-      confidence: LOW
-
-  # Rule 8: Avoid console.log in Production (IMPROVED - More specific)
-  - id: js-rule-8-no-console-production
-    pattern-either:
-      - pattern: console.log(...)
-      - pattern: console.debug(...)
-      - pattern: console.info(...)
-    message: "Rule 8: Avoid console statements in production. Use a proper logging library (e.g., winston, pino)"
-    languages: [javascript, typescript]
-    severity: WARNING
-    metadata:
-      category: best-practice
-      rule: "JS Rule 8"
-      references:
-        - https://eslint.org/docs/latest/rules/no-console
-      likelihood: MEDIUM
-      impact: LOW
-      confidence: HIGH
-
   # Rule 10: Validate Inputs (IMPROVED - More specific patterns)
   - id: js-rule-10-missing-validation-db
     patterns:
@@ -239,61 +205,6 @@ rules:
       impact: MEDIUM
       confidence: MEDIUM
 
-  # Rule 12: Avoid eval() (ENHANCED with more patterns)
-  - id: js-rule-12-no-eval
-    pattern-either:
-      - pattern: eval($X)
-      - pattern: window.eval($X)
-      - pattern: global.eval($X)
-      - pattern: new Function($X)
-      - pattern: setTimeout($STR, ...)
-      - pattern: setInterval($STR, ...)
-    message: "Rule 12: Never use eval() or Function constructor. They execute arbitrary code and are major security risks"
-    languages: [javascript, typescript]
-    severity: ERROR
-    metadata:
-      category: security
-      cwe: "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')"
-      owasp:
-        - A03:2021 - Injection
-        - A05:2025 - Injection
-      rule: "JS Rule 12"
-      references:
-        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
-        - https://owasp.org/Top10/A03_2021-Injection
-      likelihood: HIGH
-      impact: HIGH
-      confidence: HIGH
-
-  # Rule 13: Avoid innerHTML with User Data (IMPROVED)
-  - id: js-rule-13-no-innerhtml
-    patterns:
-      - pattern-either:
-          - pattern: $EL.innerHTML = $VAR
-          - pattern: $EL.outerHTML = $VAR
-      - pattern-not: $EL.innerHTML = "..."
-      - pattern-not: $EL.outerHTML = "..."
-      - pattern-not: $EL.innerHTML = DOMPurify.sanitize(...)
-      - pattern-not: $EL.outerHTML = DOMPurify.sanitize(...)
-    message: "Rule 13: Avoid innerHTML with user data. Use textContent or sanitize input to prevent XSS attacks"
-    languages: [javascript, typescript]
-    severity: ERROR
-    metadata:
-      category: security
-      cwe: "CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"
-      owasp:
-        - A03:2021 - Injection
-        - A05:2025 - Injection
-      rule: "JS Rule 13"
-      references:
-        - https://owasp.org/www-community/attacks/xss/
-        - https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html
-      likelihood: HIGH
-      impact: HIGH
-      confidence: HIGH
-      cwe2022-top25: true
-      cwe2021-top25: true
-
   # Rule 14: Always Specify Radix in parseInt
   - id: js-rule-14-parseint-radix
     patterns:
@@ -312,22 +223,25 @@ rules:
       confidence: HIGH
 
   # Rule 15: Avoid async inside forEach
-  - id: js-rule-15-no-async-foreach
-    pattern: |
-      $ARR.forEach(async ($ITEM) => {
-        ...
-      })
-    message: "Rule 15: Avoid async inside forEach. Use for...of loop or Promise.all() with map()"
-    languages: [javascript, typescript]
-    severity: ERROR
-    metadata:
-      category: async-patterns
-      rule: "JS Rule 15"
-      references:
-        - https://eslint.org/docs/latest/rules/no-async-foreach
-      likelihood: HIGH
-      impact: MEDIUM
-      confidence: HIGH
+  # NOTE: This rule has been disabled due to false positives in Semgrep.
+  # Use ESLint's 'no-async-foreach' rule instead for accurate detection.
+  # - id: js-rule-15-no-async-foreach
+  #   pattern-either:
+  #     - pattern: $ARR.forEach(async ($ITEM) => { ... })
+  #     - pattern: $ARR.forEach(async ($ITEM) => $EXPR)
+  #     - pattern: $ARR.forEach(async function($ITEM) { ... })
+  #     - pattern: $ARR.forEach(async function $NAME($ITEM) { ... })
+  #   message: "Rule 15: Avoid async inside forEach. Use for...of loop or Promise.all() with map()"
+  #   languages: [javascript, typescript]
+  #   severity: ERROR
+  #   metadata:
+  #     category: async-patterns
+  #     rule: "JS Rule 15"
+  #     references:
+  #       - https://eslint.org/docs/latest/rules/no-async-foreach
+  #     likelihood: HIGH
+  #     impact: MEDIUM
+  #     confidence: HIGH
 
   # Rule 18: Use Default Parameters
   - id: js-rule-18-default-params
@@ -666,28 +580,6 @@ rules:
         - https://cheatsheetseries.owasp.org/cheatsheets/Cross-Origin_Resource_Sharing_Cheat_Sheet.html
       likelihood: HIGH
       impact: MEDIUM
-      confidence: HIGH
-
-  # NEW: Weak Cryptography Detection
-  - id: js-security-weak-crypto
-    pattern-either:
-      - pattern: crypto.createHash('md5')
-      - pattern: crypto.createHash('sha1')
-      - pattern: crypto.pseudoRandomBytes(...)
-    message: "Weak cryptographic algorithm detected. Use SHA-256 or stronger, and crypto.randomBytes() for random values"
-    languages: [javascript, typescript]
-    severity: ERROR
-    metadata:
-      category: security
-      cwe: "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
-      owasp:
-        - A02:2021 - Cryptographic Failures
-        - A02:2025 - Cryptographic Failures
-      references:
-        - https://cwe.mitre.org/data/definitions/327.html
-        - https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html
-      likelihood: MEDIUM
-      impact: HIGH
       confidence: HIGH
 
   # NEW: Prototype Pollution Detection

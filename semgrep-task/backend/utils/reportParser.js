@@ -55,56 +55,49 @@ function calculateSeverityBreakdown(findings) {
 }
 
 /**
- * Calculate accuracy score based on severity breakdown
+ * Calculate accuracy score based on ERROR severity only
  * 
- * Uses a weighted scoring system with diminishing returns (logarithmic scale)
- * Similar to industry-standard tools like SonarQube, CodeClimate
+ * Modified to focus purely on critical issues (ERRORS)
+ * Warnings and Info are ignored in the accuracy calculation
  * 
  * Approach:
- * 1. Assign severity weights: ERROR=10, WARNING=3, INFO=1
- * 2. Calculate total weighted issues
- * 3. Use logarithmic scale to prevent harsh penalties
- * 4. Scale to 0-100 range
+ * 1. Only count ERROR severity issues
+ * 2. Use logarithmic scale to prevent harsh penalties
+ * 3. Scale to 0-100 range
  * 
- * This gives more realistic scores:
- * - 0 issues = 100% (Perfect)
- * - 5 errors = ~82% (Good)
- * - 10 errors + 20 warnings = ~67% (Fair)
- * - 50 errors + 100 warnings = ~33% (Needs Improvement)
- * - 100+ errors = <20% (Critical)
+ * This gives realistic scores based on critical issues only:
+ * - 0 errors = 100% (Perfect)
+ * - 1 error = ~95% (Excellent)
+ * - 5 errors = ~85% (Good)
+ * - 10 errors = ~80% (Good)
+ * - 20 errors = ~75% (Fair)
+ * - 50 errors = ~65% (Fair)
+ * - 100+ errors = <50% (Needs Improvement)
  * 
  * @param {Object} severityBreakdown - { ERROR: 0, WARNING: 0, INFO: 0 }
  * @returns {number} Accuracy score (0-100)
  */
 function calculateAccuracyScore(severityBreakdown) {
-    // Severity weights (industry standard)
-    const WEIGHTS = {
-        ERROR: 10,    // Critical issues
-        WARNING: 3,   // Important but not critical
-        INFO: 1       // Minor suggestions
-    };
+    // Only consider ERROR severity
+    const errorCount = severityBreakdown.ERROR;
 
-    // Calculate total weighted score
-    const weightedScore =
-        (severityBreakdown.ERROR * WEIGHTS.ERROR) +
-        (severityBreakdown.WARNING * WEIGHTS.WARNING) +
-        (severityBreakdown.INFO * WEIGHTS.INFO);
-
-    // If no issues, perfect score
-    if (weightedScore === 0) {
+    // If no errors, perfect score
+    if (errorCount === 0) {
         return 100;
     }
 
     // Logarithmic scale with diminishing returns
-    // This prevents extremely harsh penalties for high issue counts
-    // Formula: 100 - (log10(weightedScore + 1) * scalingFactor)
-    // Scaling factor adjusted to 15 for more realistic scores:
-    // - 100 weighted points (~10 errors) = ~70%
-    // - 200 weighted points (~20 errors) = ~65%
-    // - 500 weighted points (~50 errors) = ~60%
-    // - 1000+ weighted points = declining to 0%
-    const scalingFactor = 15;
-    const logScore = Math.log10(weightedScore + 1);
+    // This prevents extremely harsh penalties for high error counts
+    // Formula: 100 - (log10(errorCount + 1) * scalingFactor)
+    // Scaling factor adjusted to 20 for realistic scores:
+    // - 1 error = ~94%
+    // - 5 errors = ~86%
+    // - 10 errors = ~79%
+    // - 20 errors = ~74%
+    // - 50 errors = ~66%
+    // - 100 errors = ~60%
+    const scalingFactor = 20;
+    const logScore = Math.log10(errorCount + 1);
     const score = 100 - (logScore * scalingFactor);
 
     // Clamp between 0 and 100
@@ -164,10 +157,14 @@ function getReportStats(reportPaths) {
 
     if (!reportPaths || reportPaths.length === 0) {
         console.log('[reportParser] No report paths provided');
-        return [];
+        return { reports: [], overallAccuracy: 100, overallQuality: 'Excellent', overallColor: 'green' };
     }
 
     const stats = [];
+    let totalErrors = 0;
+    let totalWarnings = 0;
+    let totalInfo = 0;
+    let fileAccuracies = []; // Store individual file accuracies
 
     reportPaths.forEach((reportPath, index) => {
         try {
@@ -186,22 +183,26 @@ function getReportStats(reportPaths) {
             console.log(`[reportParser] Parsed ${filename}: ${findings.length} findings`);
 
             const severityBreakdown = calculateSeverityBreakdown(findings);
-            const accuracyScore = calculateAccuracyScore(severityBreakdown);
-            const quality = getQualityCategory(accuracyScore);
-            const color = getScoreColor(accuracyScore);
+
+            // Calculate accuracy for THIS file
+            const fileAccuracy = calculateAccuracyScore(severityBreakdown);
+            fileAccuracies.push(fileAccuracy);
+
+            // Accumulate totals for overall severity breakdown display
+            totalErrors += severityBreakdown.ERROR;
+            totalWarnings += severityBreakdown.WARNING;
+            totalInfo += severityBreakdown.INFO;
 
             const reportStat = {
                 index,
                 filename,
                 language,
                 totalFindings: findings.length,
-                severityBreakdown,
-                accuracyScore,
-                quality,
-                color
+                severityBreakdown
+                // Removed individual file accuracyScore, quality, color
             };
 
-            console.log(`[reportParser] Stats for ${filename}:`, reportStat);
+            console.log(`[reportParser] Stats for ${filename}: ${findings.length} findings, ${fileAccuracy}% accuracy`);
             stats.push(reportStat);
         } catch (error) {
             console.error(`[reportParser] Error processing report: ${reportPath}`, error);
@@ -212,16 +213,37 @@ function getReportStats(reportPaths) {
                 language: 'Unknown',
                 totalFindings: 0,
                 severityBreakdown: { ERROR: 0, WARNING: 0, INFO: 0 },
-                accuracyScore: 0,
-                quality: 'Unknown',
-                color: 'gray',
                 error: true
             });
+            // Failed files get 0% accuracy
+            fileAccuracies.push(0);
         }
     });
 
-    console.log(`[reportParser] Returning ${stats.length} report stats`);
-    return stats;
+    // Calculate overall accuracy as AVERAGE of individual file accuracies
+    const overallAccuracy = fileAccuracies.length > 0
+        ? Math.round((fileAccuracies.reduce((sum, acc) => sum + acc, 0) / fileAccuracies.length) * 10) / 10
+        : 100;
+
+    const overallSeverityBreakdown = {
+        ERROR: totalErrors,
+        WARNING: totalWarnings,
+        INFO: totalInfo
+    };
+    const overallQuality = getQualityCategory(overallAccuracy);
+    const overallColor = getScoreColor(overallAccuracy);
+
+    console.log(`[reportParser] Overall stats - Files: ${fileAccuracies.length}, Average Accuracy: ${overallAccuracy}%`);
+    console.log(`[reportParser] Individual file accuracies: [${fileAccuracies.join(', ')}]`);
+    console.log(`[reportParser] Total Errors: ${totalErrors}, Warnings: ${totalWarnings}, Info: ${totalInfo}`);
+
+    return {
+        reports: stats,
+        overallAccuracy,
+        overallQuality,
+        overallColor,
+        overallSeverityBreakdown
+    };
 }
 
 module.exports = {

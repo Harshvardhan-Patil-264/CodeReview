@@ -62,12 +62,22 @@ rules:
   # Rule 4: Use Try-With-Resources for AutoCloseable
   - id: java-best-practice-try-with-resources
     patterns:
-      - pattern: |
-          $RESOURCE $VAR = ...;
-          try {
+      - pattern-either:
+          - pattern: |
+              $RESOURCE $VAR = ...;
+              try {
+                ...
+              } finally {
+                $VAR.close();
+              }
+          - pattern: |
+              $RESOURCE $VAR = ...;
+              try {
+                ...
+              }
+      - pattern-not-inside: |
+          try ($RESOURCE $VAR = ...) {
             ...
-          } finally {
-            $VAR.close();
           }
     message: "Use try-with-resources for AutoCloseable objects to ensure proper resource cleanup"
     languages: [java]
@@ -151,6 +161,30 @@ rules:
       category: best-practice
       subcategory: error-handling
 
+  # Rule 10: Use @Override Annotation
+  - id: java-best-practice-use-override
+    patterns:
+      - pattern-either:
+          - pattern: |
+              public boolean equals(Object $OBJ) {
+                ...
+              }
+          - pattern: |
+              public int hashCode() {
+                ...
+              }
+          - pattern: |
+              public String toString() {
+                ...
+              }
+      - pattern-not: |
+          @Override
+          ...
+    message: "Use @Override annotation when overriding methods"
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: best-practice
 
   # Rule 11: Prefer Diamond Operator
   - id: java-best-practice-diamond-operator
